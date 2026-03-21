@@ -66,19 +66,22 @@
     <title>Meesho Pro | Admin</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; }
-        h1 { color: #1e293b; text-align: center; }
-        table { width: 100%; background: white; border-collapse: collapse; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        th, td { padding: 14px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }
-        th { background: #6366f1; color: white; text-transform: uppercase; letter-spacing: 0.5px; }
-        tr:hover { background: #f8fafc; }
-        .btn-verify { background: #22c55e; color: white; border: none; padding: 7px 14px; cursor: pointer; border-radius: 6px; font-weight: bold; }
-        .btn-block { background: #ef4444; color: white; border: none; padding: 7px 14px; cursor: pointer; border-radius: 6px; font-weight: bold; }
-        .ip-txt { font-family: monospace; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
-        .status-badge { padding: 4px 8px; border-radius: 20px; font-size: 11px; font-weight: bold; }
-        .status-active { background: #dcfce7; color: #166534; }
-        .status-blocked { background: #fee2e2; color: #991b1b; }
-        .status-trial { background: #fef9c3; color: #854d0e; }
+        .container { max-width: 1200px; margin: auto; }
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background: #5f249f; color: white; }
+        .btn { border: none; padding: 6px 10px; cursor: pointer; border-radius: 4px; font-weight: bold; margin-right: 5px; }
+        .btn-verify { background: #28a745; color: white; }
+        .btn-block { background: #ffc107; color: black; }
+        .btn-delete { background: #dc3545; color: white; }
+        .btn-view { background: #17a2b8; color: white; }
+        
+        /* Modal Styles */
+        #modalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal { background: white; padding: 25px; border-radius: 12px; width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal h2 { margin-top: 0; border-bottom: 2px solid #5f249f; padding-bottom: 10px; }
+        .info-row { margin: 10px 0; font-size: 14px; }
+        .info-label { font-weight: bold; color: #555; width: 120px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -89,60 +92,80 @@
                 <tr>
                     <th>Mobile</th>
                     <th>Seller Name</th>
-                    <th>User IP</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
+                    <th>GST Number</th> <th>Status</th>
+                    <th>Actions</th> </tr>
             </thead>
             <tbody id="userList"></tbody>
         </table>
     </div>
 
+    <div id="modalOverlay">
+        <div class="modal">
+            <h2>Seller Details</h2>
+            <div id="modalContent"></div>
+            <button class="btn btn-block" style="width:100%; margin-top:20px;" onclick="closeModal()">Close Details</button>
+        </div>
+    </div>
+
     <script>
+        let allUsers = [];
+
         async function fetchUsers() {
             const res = await fetch('/api/admin/users');
-            const users = await res.json();
+            allUsers = await res.json();
             const list = document.getElementById('userList');
-            
-            list.innerHTML = users.map(u => {
-                const regDate = new Date(u.reg_date);
-                const daysOld = Math.floor((new Date() - regDate) / (1000 * 60 * 60 * 24));
-                
-                let statusClass = 'status-trial';
-                let statusText = `Trial (Day ${daysOld})`;
-                
-                if (u.is_verified === 1) {
-                    statusClass = 'status-active';
-                    statusText = 'Verified Account';
-                } else if (u.is_verified === -1) {
-                    statusClass = 'status-blocked';
-                    statusText = 'Account Blocked';
-                }
-
-                return `
-                    <tr>
-                        <td><b>${u.mobile}</b></td>
-                        <td>${u.seller_name || 'N/A'}</td>
-                        <td><span class="ip-txt">${u.user_ip || '---'}</span></td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td>
-                            <button class="btn-verify" onclick="updateStatus('${u.mobile}', 1)">Approve</button>
-                            <button class="btn-block" onclick="updateStatus('${u.mobile}', -1)" style="margin-left:5px;">Block</button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+            list.innerHTML = allUsers.map(u => `
+                <tr>
+                    <td>${u.mobile}</td>
+                    <td>${u.seller_name || 'N/A'}</td>
+                    <td>${u.gst_number || 'N/A'}</td>
+                    <td>${u.is_verified === 1 ? '✅ Verified' : u.is_verified === -1 ? '❌ Blocked' : '⏳ Pending'}</td>
+                    <td>
+                        <button class="btn btn-view" onclick="viewDetails('${u.mobile}')">View</button>
+                        <button class="btn btn-verify" onclick="updateStatus('${u.mobile}', 1)">Verify</button>
+                        <button class="btn btn-block" onclick="updateStatus('${u.mobile}', -1)">Block</button>
+                        <button class="btn btn-delete" onclick="deleteUser('${u.mobile}')">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
         async function updateStatus(mobile, status) {
-            if(!confirm(`Update status for ${mobile}?`)) return;
-            const res = await fetch('/api/admin/update-status', {
+            await fetch('/api/admin/update-status', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ mobile, status })
             });
-            const data = await res.json();
-            if(data.success) fetchUsers();
+            fetchUsers();
+        }
+
+        async function deleteUser(mobile) {
+            if(confirm(`Are you sure you want to PERMANENTLY delete user ${mobile}?`)) {
+                await fetch('/api/admin/delete-user', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ mobile })
+                });
+                fetchUsers();
+            }
+        }
+
+        function viewDetails(mobile) {
+            const user = allUsers.find(u => u.mobile === mobile);
+            const content = document.getElementById('modalContent');
+            content.innerHTML = `
+                <div class="info-row"><span class="info-label">Seller Name:</span> ${user.seller_name || 'N/A'}</div>
+                <div class="info-row"><span class="info-label">Mobile:</span> ${user.mobile}</div>
+                <div class="info-row"><span class="info-label">Email:</span> ${user.email || 'N/A'}</div>
+                <div class="info-row"><span class="info-label">GST:</span> ${user.gst_number || 'N/A'}</div>
+                <div class="info-row"><span class="info-label">HWID:</span> <small>${user.hwid || 'N/A'}</small></div>
+                <div class="info-row"><span class="info-label">Reg Date:</span> ${new Date(user.reg_date).toLocaleDateString()}</div>
+            `;
+            document.getElementById('modalOverlay').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
         }
 
         fetchUsers();

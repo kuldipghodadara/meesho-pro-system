@@ -271,6 +271,18 @@ app.post('/api/admin/update-status', async (req, res) => {
     res.json({ success: true });
 });
 
+// NEW: Delete User API
+app.post('/api/admin/delete-user', async (req, res) => {
+    try {
+        await connectDB();
+        const { mobile } = req.body;
+        await User.findOneAndDelete({ mobile });
+        res.json({ success: true, message: "User deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 module.exports = async (req, res) => {
     await connectDB();
     return app(req, res);
