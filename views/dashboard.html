@@ -1,199 +1,4 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Kuldip's Meesho Admin Panel</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 30px; background: #f1f5f9; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h2 { color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #edf2f7; }
-        th { background: #4f46e5; color: white; }
-        .status { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
-        .verified { background: #dcfce7; color: #166534; }
-        .trial { background: #fef9c3; color: #854d0e; }
-        .blocked { background: #fee2e2; color: #991b1b; }
-        .btn { padding: 6px 12px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; transition: 0.2s; }
-        .btn-v { background: #22c55e; color: white; margin-right: 5px; }
-        .btn-b { background: #ef4444; color: white; }
-        .btn:hover { opacity: 0.8; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <h2>Meesho Label Pro - User Management</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Email / User</th>
-                <th>IP Address</th>
-                <th>Registration</th>
-                <th>Access Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="userBody">
-            </tbody>
-    </table>
-</div>
-
-<script>
-    const SERVER_URL = "http://localhost:3000";
-
-    async function fetchUsers() {
-        const res = await fetch(`${SERVER_URL}/api/admin/users`);
-        const users = await res.json();
-        const tbody = document.getElementById('userBody');
-        tbody.innerHTML = '';
-
-        users.forEach(u => {
-            const statusClass = u.is_verified === 1 ? 'verified' : (u.is_verified === -1 ? 'blocked' : 'trial');
-            const statusText = u.is_verified === 1 ? 'PAID / VERIFIED' : (u.is_verified === -1 ? 'BLOCKED' : 'TRIAL');
-            
-            tbody.innerHTML += `
-                <tr>
-                    <td><strong>${u.email}</strong></td>
-                    <td>${u.ip}</td>
-                    <td>${new Date(u.reg_date).toLocaleDateString()}</td>
-                    <td><span class="status ${statusClass}">${statusText}</span></td>
-                    <td>
-                        <button class="btn btn-v" onclick="updateStatus('${u.email}', 'verify')">Approve</button>
-                        <button class="btn btn-b" onclick="updateStatus('${u.email}', 'block')">Block</button>
-                    </td>
-                </tr>
-            `;
-        });
-    }
-
-    async function updateStatus(email, action) {
-        await fetch(`${SERVER_URL}/api/admin/update`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, action })
-        });
-        fetchUsers();
-    }
-
-    // Load data on start
-    fetchUsers();
-</script>
-
-</body>
-</html> -->
 <!-- 
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Kuldip Admin Panel</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 30px; background: #f1f5f9; margin: 0; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        h2 { color: #1e293b; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
-        th, td { padding: 12px; border: 1px solid #e2e8f0; text-align: left; }
-        th { background: #6366f1; color: white; font-weight: 600; text-transform: uppercase; font-size: 12px; }
-        tr:hover { background-color: #f8fafc; }
-        
-        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
-        .paid { background: #dcfce7; color: #166534; }
-        .blocked { background: #fee2e2; color: #991b1b; }
-        .trial { background: #fef9c3; color: #854d0e; }
-
-        .btn { padding: 8px 14px; cursor: pointer; border: none; border-radius: 6px; color: white; font-weight: 600; transition: 0.2s; font-size: 12px; margin-right: 5px; }
-        .btn-v { background: #22c55e; }
-        .btn-v:hover { background: #16a34a; }
-        .btn-b { background: #ef4444; }
-        .btn-b:hover { background: #dc2626; }
-        
-        .refresh-btn { background: #64748b; font-size: 14px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>
-            Meesho Pro User Management
-            <button class="btn refresh-btn" onclick="load()">🔄 Refresh Data</button>
-        </h2>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th>Mobile (Login)</th>
-                    <th>Seller / Business</th>
-                    <th>GST Number</th>
-                    <th>Email</th>
-                    <th>IP Address</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="userBody">
-                <tr><td colspan="7" style="text-align:center;">Loading users...</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <script>
-        const API = "http://localhost:3000";
-
-        async function load() {
-            try {
-                const r = await fetch(`${API}/api/admin/users`);
-                const users = await r.json();
-                
-                const html = users.map(u => {
-                    let statusClass = u.is_verified == 1 ? 'paid' : (u.is_verified == -1 ? 'blocked' : 'trial');
-                    let statusText = u.is_verified == 1 ? 'PAID' : (u.is_verified == -1 ? 'BLOCKED' : 'TRIAL');
-                    
-                    return `
-                    <tr>
-                        <td style="font-weight:bold;">${u.mobile}</td>
-                        <td>${u.seller_name || '<span style="color:#ccc;">N/A</span>'}</td>
-                        <td>${u.gst_number || '<span style="color:#ccc;">N/A</span>'}</td>
-                        <td>${u.email || '<span style="color:#ccc;">N/A</span>'}</td>
-                        <td style="font-family:monospace; font-size:12px;">${u.ip}</td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td>
-                            <button class="btn btn-v" onclick="upd('${u.mobile}','verify')">Approve</button>
-                            <button class="btn btn-b" onclick="upd('${u.mobile}','block')">Block</button>
-                        </td>
-                    </tr>`;
-                }).join('');
-                
-                document.getElementById('userBody').innerHTML = html || '<tr><td colspan="7" style="text-align:center;">No users found.</td></tr>';
-            } catch (err) {
-                document.getElementById('userBody').innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Error connecting to server. Make sure server.js is running.</td></tr>`;
-            }
-        }
-
-        async function upd(mobile, action) {
-            if(!confirm(`Are you sure you want to ${action} user ${mobile}?`)) return;
-
-            try {
-                const res = await fetch(`${API}/api/admin/update`, {
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ mobile, action })
-                });
-                const result = await res.json();
-                if(result.success) {
-                    load(); // Refresh table
-                } else {
-                    alert("Update failed: " + result.message);
-                }
-            } catch (err) {
-                alert("Server error. Check if backend is running.");
-            }
-        }
-
-        // Initial load
-        load();
-    </script>
-</body>
-</html> -->
 
 
 <!DOCTYPE html>
@@ -248,6 +53,96 @@
                 body: JSON.stringify({ mobile, status })
             });
             fetchUsers(); // Refresh list
+        }
+
+        fetchUsers();
+    </script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Meesho Pro | Admin</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; }
+        h1 { color: #1e293b; text-align: center; }
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        th, td { padding: 14px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }
+        th { background: #6366f1; color: white; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:hover { background: #f8fafc; }
+        .btn-verify { background: #22c55e; color: white; border: none; padding: 7px 14px; cursor: pointer; border-radius: 6px; font-weight: bold; }
+        .btn-block { background: #ef4444; color: white; border: none; padding: 7px 14px; cursor: pointer; border-radius: 6px; font-weight: bold; }
+        .ip-txt { font-family: monospace; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+        .status-badge { padding: 4px 8px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+        .status-active { background: #dcfce7; color: #166534; }
+        .status-blocked { background: #fee2e2; color: #991b1b; }
+        .status-trial { background: #fef9c3; color: #854d0e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>User Management Panel</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Mobile</th>
+                    <th>Seller Name</th>
+                    <th>User IP</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="userList"></tbody>
+        </table>
+    </div>
+
+    <script>
+        async function fetchUsers() {
+            const res = await fetch('/api/admin/users');
+            const users = await res.json();
+            const list = document.getElementById('userList');
+            
+            list.innerHTML = users.map(u => {
+                const regDate = new Date(u.reg_date);
+                const daysOld = Math.floor((new Date() - regDate) / (1000 * 60 * 60 * 24));
+                
+                let statusClass = 'status-trial';
+                let statusText = `Trial (Day ${daysOld})`;
+                
+                if (u.is_verified === 1) {
+                    statusClass = 'status-active';
+                    statusText = 'Verified Account';
+                } else if (u.is_verified === -1) {
+                    statusClass = 'status-blocked';
+                    statusText = 'Account Blocked';
+                }
+
+                return `
+                    <tr>
+                        <td><b>${u.mobile}</b></td>
+                        <td>${u.seller_name || 'N/A'}</td>
+                        <td><span class="ip-txt">${u.user_ip || '---'}</span></td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <button class="btn-verify" onclick="updateStatus('${u.mobile}', 1)">Approve</button>
+                            <button class="btn-block" onclick="updateStatus('${u.mobile}', -1)" style="margin-left:5px;">Block</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function updateStatus(mobile, status) {
+            if(!confirm(`Update status for ${mobile}?`)) return;
+            const res = await fetch('/api/admin/update-status', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mobile, status })
+            });
+            const data = await res.json();
+            if(data.success) fetchUsers();
         }
 
         fetchUsers();
