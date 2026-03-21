@@ -177,19 +177,15 @@ app.use('/public', express.static(path.join(process.cwd(), 'public')));
 
 // ---------------- DB CONNECTION ----------------
 let isConnected = false;
-
 async function connectDB() {
     if (isConnected) return;
     try {
-        if (!process.env.MONGODB_URI) {
-            throw new Error("❌ MONGODB_URI missing in environment variables");
-        }
+        if (!process.env.MONGODB_URI) throw new Error("❌ MONGODB_URI missing");
         const db = await mongoose.connect(process.env.MONGODB_URI, {
             bufferCommands: false,
             serverSelectionTimeoutMS: 5000
         });
         isConnected = db.connections[0].readyState;
-        console.log("✅ MongoDB Connected");
     } catch (err) {
         console.error("❌ MongoDB Error:", err.message);
         throw err;
@@ -206,29 +202,24 @@ const UserSchema = new mongoose.Schema({
     user_ip: String,
     is_verified: { type: Number, default: 0 }, // 0 = Trial, 1 = Active, -1 = Blocked
     reg_date: { type: Date, default: Date.now },
-    expiry_date: { type: Date, default: null } // Added for auto-blocking logic
+    expiry_date: { type: Date, default: null } 
 });
 
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // ---------------- ROUTES ----------------
 
-app.get('/', (req, res) => {
-    res.json({ message: "🚀 Management API Running" });
-});
-
 app.get('/dashboard', (req, res) => {
     try {
         const filePath = path.join(process.cwd(), 'views', 'dashboard.html');
-        const html = fs.readFileSync(filePath, 'utf-8');
         res.setHeader('Content-Type', 'text/html');
-        res.send(html);
+        res.send(fs.readFileSync(filePath, 'utf-8'));
     } catch (err) {
         res.status(500).send("Dashboard load error");
     }
 });
 
-// ---------------- VERIFY / LOGIN (With Auto-Block) ----------------
+// ---------------- VERIFY / LOGIN ----------------
 app.post('/api/verify', async (req, res) => {
     try {
         await connectDB();
@@ -239,7 +230,7 @@ app.post('/api/verify', async (req, res) => {
 
         let user = await User.findOne({ mobile });
 
-        // Security Check: Block if different mobile uses same IP
+        // IP Conflict Security: Block if different mobile uses same IP
         const ipConflict = await User.findOne({ user_ip: userIp, mobile: { $ne: mobile } });
         if (ipConflict) {
             if (user) { user.is_verified = -1; await user.save(); }
@@ -247,39 +238,27 @@ app.post('/api/verify', async (req, res) => {
         }
 
         if (!user) {
-            user = await User.create({
-                mobile, seller_name, gst_number, email, hwid,
-                user_ip: userIp, is_verified: 0 
-            });
+            user = await User.create({ mobile, seller_name, gst_number, email, hwid, user_ip: userIp, is_verified: 0 });
         } else {
-            user.seller_name = seller_name;
-            user.gst_number = gst_number;
-            user.email = email;
             user.user_ip = userIp;
             if (!user.hwid) user.hwid = hwid;
             await user.save();
         }
 
-        // Auto-Block Logic: Check Expiry Date
+        // Auto-Block Logic: Expiry Date Check
         if (user.expiry_date && new Date() > new Date(user.expiry_date)) {
             user.is_verified = -1;
             await user.save();
             return res.json({ success: false, message: "Subscription Expired. Contact team for Payment." });
         }
 
-        if (user.is_verified === -1) {
-            return res.json({ success: false, message: "Contact team for Payment" });
-        }
+        if (user.is_verified === -1) return res.json({ success: false, message: "Contact team for Payment" });
 
-        // Trial Logic (7 Days)
+        // 7-Day Trial Logic
         const daysOld = Math.floor((Date.now() - user.reg_date) / (1000 * 60 * 60 * 24));
         if (user.is_verified === 0) {
             if (daysOld <= 7) {
-                return res.json({ 
-                    success: true, 
-                    data: user, 
-                    message: "Free 7 day trial active. Management accept after work user flow." 
-                });
+                return res.json({ success: true, data: user, message: "Free 7 day trial active. Management accept after work user flow." });
             } else {
                 return res.json({ success: false, message: "Trial Expired. Contact team for Payment" });
             }
@@ -294,54 +273,31 @@ app.post('/api/verify', async (req, res) => {
 // ---------------- ADMIN APIs ----------------
 
 app.get('/api/admin/users', async (req, res) => {
-    try {
-        await connectDB();
-        const users = await User.find().sort({ reg_date: -1 });
-        res.json(users);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    await connectDB();
+    res.json(await User.find().sort({ reg_date: -1 }));
 });
 
 app.post('/api/admin/update-status', async (req, res) => {
-    try {
-        await connectDB();
-        const { mobile, status } = req.body;
-        await User.findOneAndUpdate({ mobile }, { is_verified: status });
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+    await connectDB();
+    const { mobile, status } = req.body;
+    await User.findOneAndUpdate({ mobile }, { is_verified: status });
+    res.json({ success: true });
 });
 
 app.post('/api/admin/update-expiry', async (req, res) => {
-    try {
-        await connectDB();
-        const { mobile, expiry_date } = req.body;
-        await User.findOneAndUpdate({ mobile }, { expiry_date: expiry_date });
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+    await connectDB();
+    const { mobile, expiry_date } = req.body;
+    await User.findOneAndUpdate({ mobile }, { expiry_date: expiry_date });
+    res.json({ success: true });
 });
 
 app.post('/api/admin/delete-user', async (req, res) => {
-    try {
-        await connectDB();
-        const { mobile } = req.body;
-        await User.findOneAndDelete({ mobile });
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+    await connectDB();
+    await User.findOneAndDelete({ mobile: req.body.mobile });
+    res.json({ success: true });
 });
 
-// ---------------- EXPORT FOR VERCEL ----------------
 module.exports = async (req, res) => {
-    try {
-        await connectDB();
-        return app(req, res);
-    } catch (err) {
-        res.status(500).json({ error: "Server Crash", detail: err.message });
-    }
+    await connectDB();
+    return app(req, res);
 };
