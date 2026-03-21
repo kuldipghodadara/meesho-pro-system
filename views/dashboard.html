@@ -60,49 +60,197 @@
 </body>
 </html> -->
 
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Meesho Pro | Admin</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meesho Pro | Admin Panel</title>
     <style>
-        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
-        table { width: 100%; background: white; border-collapse: collapse; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
-        th { background: #5f249f; color: white; }
-        .btn { border: none; padding: 6px 10px; cursor: pointer; border-radius: 4px; font-weight: bold; margin-right: 5px; color: white; }
-        .btn-verify { background: green; }
-        .btn-block { background: #ffc107; color: black; }
-        .btn-delete { background: red; }
-        .btn-view { background: #17a2b8; }
+        :root {
+            --primary: #5f249f;
+            --primary-light: #f3ebff;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #0ea5e9;
+            --slate-50: #f8fafc;
+            --slate-100: #f1f5f9;
+            --slate-200: #e2e8f0;
+            --slate-700: #334155;
+            --white: #ffffff;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background-color: var(--slate-50); 
+            color: var(--slate-700);
+            margin: 0;
+            padding: 30px; 
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 { margin: 0; font-size: 24px; color: var(--primary); }
+
+        .table-container {
+            background: var(--white);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid var(--slate-200);
+        }
+
+        table { width: 100%; border-collapse: collapse; }
         
-        #modalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
-        .modal { background: white; padding: 25px; border-radius: 12px; width: 420px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-        .info-row { margin: 15px 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px; font-size: 14px; }
-        .info-label { font-weight: bold; color: #555; }
-        .expiry-input { padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 180px; }
+        th { 
+            background: var(--slate-100); 
+            color: var(--slate-700); 
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            padding: 15px;
+            text-align: left;
+            border-bottom: 2px solid var(--slate-200);
+        }
+
+        td { padding: 14px 15px; border-bottom: 1px solid var(--slate-100); font-size: 14px; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background-color: #fafafa; }
+
+        /* Status Badges */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .badge-verified { background: #dcfce7; color: #166534; }
+        .badge-blocked { background: #fee2e2; color: #991b1b; }
+        .badge-trial { background: #fef9c3; color: #854d0e; }
+
+        /* Action Buttons */
+        .btn-group { display: flex; gap: 6px; }
+        .btn { 
+            border: none; 
+            padding: 8px 12px; 
+            cursor: pointer; 
+            border-radius: 6px; 
+            font-weight: 600; 
+            font-size: 12px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn:active { transform: scale(0.95); }
+
+        .btn-view { background: var(--info); color: white; }
+        .btn-verify { background: var(--success); color: white; }
+        .btn-block { background: var(--warning); color: white; }
+        .btn-delete { background: var(--danger); color: white; }
+        .btn:hover { opacity: 0.9; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* Modal Design */
+        #modalOverlay { 
+            display: none; 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(15, 23, 42, 0.5); 
+            backdrop-filter: blur(4px);
+            align-items: center; 
+            justify-content: center; 
+            z-index: 1000; 
+        }
+        .modal { 
+            background: var(--white); 
+            padding: 0; 
+            border-radius: 16px; 
+            width: 450px; 
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); 
+            overflow: hidden;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .modal-header { background: var(--primary); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { margin: 0; font-size: 18px; }
+        .modal-body { padding: 20px; }
+
+        .info-row { 
+            margin-bottom: 12px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding-bottom: 10px; 
+            border-bottom: 1px solid var(--slate-100); 
+        }
+        .info-label { font-weight: 600; color: #64748b; font-size: 13px; }
+        .info-value { color: var(--slate-700); font-size: 14px; text-align: right; }
+        
+        .expiry-container {
+            background: #fff5f5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid #fed7d7;
+        }
+        .expiry-input { 
+            padding: 8px; 
+            border: 1px solid var(--slate-200); 
+            border-radius: 6px; 
+            width: 100%; 
+            margin-top: 8px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .modal-footer { padding: 15px 20px; background: var(--slate-50); text-align: right; }
+        .close-btn { background: var(--slate-700); color: white; width: 100%; padding: 12px; }
+
     </style>
 </head>
 <body>
-    <h1>User Management Panel</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Mobile</th>
-                <th>Seller Name</th>
-                <th>GST Number</th>
-                <th>Reg Date</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="userList"></tbody>
-    </table>
+    <div class="header">
+        <h1>Meesho Pro User Management</h1>
+        <button class="btn btn-view" onclick="fetchUsers()">Refresh Data</button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mobile</th>
+                    <th>Seller Name</th>
+                    <th>GST Number</th>
+                    <th>Reg Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="userList">
+                </tbody>
+        </table>
+    </div>
 
     <div id="modalOverlay">
         <div class="modal">
-            <h2 style="margin-top:0; color:#5f249f; border-bottom: 2px solid #5f249f; padding-bottom: 10px;">Seller Details</h2>
-            <div id="modalContent"></div>
-            <button class="btn btn-block" style="width:100%; margin-top:20px;" onclick="closeModal()">Close Details</button>
+            <div class="modal-header">
+                <h2>Seller Full Profile</h2>
+            </div>
+            <div class="modal-body" id="modalContent">
+                </div>
+            <div class="modal-footer">
+                <button class="btn close-btn" onclick="closeModal()">Close Details</button>
+            </div>
         </div>
     </div>
 
@@ -110,25 +258,41 @@
         let allUsers = [];
 
         async function fetchUsers() {
-            const res = await fetch('/api/admin/users');
-            allUsers = await res.json();
+            try {
+                const res = await fetch('/api/admin/users');
+                allUsers = await res.json();
+                renderTable();
+            } catch (err) {
+                console.error("Failed to fetch users");
+            }
+        }
+
+        function renderTable() {
             const list = document.getElementById('userList');
-            list.innerHTML = allUsers.map(u => `
-                <tr>
-                    <td>${u.mobile}</td>
-                    <td>${u.seller_name || 'N/A'}</td>
-                    <td>${u.gst_number || 'N/A'}</td>
-                    <td>${new Date(u.reg_date).toLocaleDateString()}</td>
-                    <td>${u.gst_number || 'N/A'}</td>
-                    <td>${u.is_verified === 1 ? '✅ Verified' : u.is_verified === -1 ? '❌ Blocked' : '⏳ Trial'}</td>
-                    <td>
-                        <button class="btn btn-view" onclick="viewDetails('${u.mobile}')">View</button>
-                        <button class="btn btn-verify" onclick="updateStatus('${u.mobile}', 1)">Verify</button>
-                        <button class="btn btn-block" onclick="updateStatus('${u.mobile}', -1)">Block</button>
-                        <button class="btn btn-delete" onclick="deleteUser('${u.mobile}')">Delete</button>
-                    </td>
-                </tr>
-            `).join('');
+            list.innerHTML = allUsers.map(u => {
+                let statusBadge = '';
+                if (u.is_verified === 1) statusBadge = '<span class="badge badge-verified">Active</span>';
+                else if (u.is_verified === -1) statusBadge = '<span class="badge badge-blocked">Blocked</span>';
+                else statusBadge = '<span class="badge badge-trial">Trial Mode</span>';
+
+                return `
+                    <tr>
+                        <td style="font-weight:600;">${u.mobile}</td>
+                        <td>${u.seller_name || '<span style="color:#ccc">N/A</span>'}</td>
+                        <td style="font-family:monospace;">${u.gst_number || 'N/A'}</td>
+                        <td>${new Date(u.reg_date).toLocaleDateString('en-IN')}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <div class="btn-group">
+                                <button class="btn btn-view" onclick="viewDetails('${u.mobile}')" title="View Info">View</button>
+                                <button class="btn btn-verify" onclick="updateStatus('${u.mobile}', 1)" title="Activate User">Verify</button>
+                                <button class="btn btn-block" onclick="updateStatus('${u.mobile}', -1)" title="Block User">Block</button>
+                                <button class="btn btn-delete" onclick="deleteUser('${u.mobile}')" title="Remove User">Del</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function viewDetails(mobile) {
@@ -137,30 +301,37 @@
             const expiryVal = user.expiry_date ? user.expiry_date.split('T')[0] : '';
 
             content.innerHTML = `
-                <div class="info-row"><span class="info-label">Mobile:</span> <span>${user.mobile}</span></div>
-                <div class="info-row"><span class="info-label">Reg Date:</span> <span>${new Date(user.reg_date).toLocaleDateString()}</span></div>
-                <div class="info-row"><span class="info-label">GST:</span> <span>${user.gst_number || 'N/A'}</span></div>
-                <div class="info-row">
-                    <span class="info-label" style="color:red;">Account End Date:</span>
+                <div class="info-row"><span class="info-label">Full Name:</span> <span class="info-value">${user.seller_name || 'N/A'}</span></div>
+                <div class="info-row"><span class="info-label">Mobile:</span> <span class="info-value">${user.mobile}</span></div>
+                <div class="info-row"><span class="info-label">Email:</span> <span class="info-value">${user.email || 'N/A'}</span></div>
+                <div class="info-row"><span class="info-label">Registration:</span> <span class="info-value">${new Date(user.reg_date).toLocaleString()}</span></div>
+                <div class="info-row"><span class="info-label">GSTIN:</span> <span class="info-value">${user.gst_number || 'N/A'}</span></div>
+                <div class="info-row"><span class="info-label">Hardware ID:</span> <span class="info-value" style="font-size:10px;">${user.hwid || 'N/A'}</span></div>
+                <div class="info-row"><span class="info-label">Last IP Address:</span> <span class="info-value">${user.user_ip || '---'}</span></div>
+                
+                <div class="expiry-container">
+                    <label class="info-label" style="color:var(--danger)">SET ACCOUNT EXPIRY DATE:</label>
                     <input type="date" class="expiry-input" value="${expiryVal}" onchange="saveExpiry('${user.mobile}', this.value)">
+                    <p style="font-size:11px; color:#e53e3e; margin-top:5px; margin-bottom:0;">Account will automatically block at 12:00 AM on this date.</p>
                 </div>
-                <div class="info-row"><span class="info-label">Last IP:</span> <span>${user.user_ip || '---'}</span></div>
-                <div class="info-row"><span class="info-label">HWID:</span> <small style="font-size:9px">${user.hwid || 'N/A'}</small></div>
             `;
             document.getElementById('modalOverlay').style.display = 'flex';
         }
 
         async function saveExpiry(mobile, date) {
-            await fetch('/api/admin/update-expiry', {
+            const res = await fetch('/api/admin/update-expiry', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ mobile, expiry_date: date })
             });
-            alert("Expiry updated. Account will auto-block after this date.");
+            if(res.ok) alert("Access validity updated successfully.");
             fetchUsers();
         }
 
         async function updateStatus(mobile, status) {
+            const action = status === 1 ? "Activate" : "Block";
+            if(!confirm(`Are you sure you want to ${action} user ${mobile}?`)) return;
+
             await fetch('/api/admin/update-status', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -170,7 +341,7 @@
         }
 
         async function deleteUser(mobile) {
-            if(confirm(`Permanently delete user ${mobile}?`)) {
+            if(confirm(`⚠️ PERMANENT DELETE: Are you sure you want to remove user ${mobile}? This cannot be undone.`)) {
                 await fetch('/api/admin/delete-user', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -181,6 +352,8 @@
         }
 
         function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+        
+        // Initial load
         fetchUsers();
     </script>
 </body>
