@@ -133,7 +133,9 @@
 //     console.log(`✅ Meesho Pro Server running on http://localhost:${port}`);
 // });
 
+// At the bottom of your file, replace app.listen with:const express = require('express');
 const express = require('express');
+require('dotenv').config();
 const mongoose = require('mongoose');
 const path = require('path');
 const cors = require('cors');
@@ -145,28 +147,43 @@ app.use(express.json());
 // Serve static files from "public"
 app.use(express.static(path.join(__dirname, '../public')));
 
-// --- MONGODB CONNECTION ---
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log("Admin Panel connected to MongoDB"))
-  .catch(err => console.error(err));
+// --- DATABASE CONNECTION CACHING (Crucial for Vercel) ---
+let isConnected = false;
+
+const connectDB = async () => {
+    if (isConnected) return;
+    try {
+        const db = await mongoose.connect(process.env.MONGODB_URI);
+        isConnected = db.connections[0].readyState;
+        console.log("Connected to MongoDB Atlas");
+    } catch (err) {
+        console.error("MongoDB Connection Error:", err);
+    }
+};
+
+// --- USER MODEL ---
+const UserSchema = new mongoose.Schema({
+    mobile: String,
+    seller_name: String,
+    is_verified: { type: Number, default: 0 },
+    reg_date: { type: Date, default: Date.now }
+});
+
+// Avoid "OverwriteModelError" in serverless environments
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // --- ADMIN ROUTES ---
 
 // 1. Serve the Dashboard HTML
 app.get('/dashboard', (req, res) => {
+    // Note: Use ../views because this file is inside the /api folder
     res.sendFile(path.join(__dirname, '../views/dashboard.html'));
 });
 
-// 2. API to get all users from MongoDB
+// 2. API to get all users
 app.get('/api/admin/users', async (req, res) => {
     try {
-        // Use the same User model as your backend
-        const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({
-            mobile: String,
-            seller_name: String,
-            is_verified: Number,
-            reg_date: Date
-        }));
+        await connectDB(); // Ensure connection is active
         const users = await User.find().sort({ reg_date: -1 });
         res.json(users);
     } catch (err) {
@@ -176,10 +193,17 @@ app.get('/api/admin/users', async (req, res) => {
 
 // 3. API to Verify/Block a user
 app.post('/api/admin/update-status', async (req, res) => {
-    const { mobile, status } = req.body;
-    const User = mongoose.models.User;
-    await User.findOneAndUpdate({ mobile }, { is_verified: status });
-    res.json({ success: true });
+    try {
+        await connectDB(); // Ensure connection is active
+        const { mobile, status } = req.body;
+        await User.findOneAndUpdate({ mobile }, { is_verified: status });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
+
+// Root Health Check
+app.get('/', (req, res) => res.send("Management API is Live"));
 
 module.exports = app;
