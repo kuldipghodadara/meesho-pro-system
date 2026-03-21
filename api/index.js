@@ -1,5 +1,4 @@
 const express = require('express');
-require('dotenv').config();
 const mongoose = require('mongoose');
 const path = require('path');
 const cors = require('cors');
@@ -8,66 +7,113 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from "public"
-app.use(express.static(path.join(__dirname, '../public')));
+// Serve static files
+app.use('/public', express.static(path.join(__dirname, '../public')));
 
-// --- DATABASE CONNECTION CACHING ---
+// ---------------- DB CONNECTION ----------------
 let isConnected = false;
 
-const connectDB = async () => {
+async function connectDB() {
     if (isConnected) return;
-    try {
-        // Use the connection string from Vercel Environment Variables
-        const db = await mongoose.connect(process.env.MONGODB_URI);
-        isConnected = db.connections[0].readyState;
-        console.log("Connected to MongoDB Atlas");
-    } catch (err) {
-        console.error("MongoDB Connection Error:", err);
-    }
-};
 
-// --- USER MODEL ---
+    const db = await mongoose.connect(process.env.MONGODB_URI);
+    isConnected = db.connections[0].readyState;
+
+    console.log("✅ MongoDB Connected");
+}
+
+// ---------------- MODEL ----------------
 const UserSchema = new mongoose.Schema({
     mobile: String,
     seller_name: String,
-    is_verified: { type: Number, default: 0 },
+    gst_number: String,
+    email: String,
+    hwid: String,
+    is_verified: { type: Number, default: 1 }, // 1 = active, 0 = blocked
     reg_date: { type: Date, default: Date.now }
 });
 
-// Avoid "OverwriteModelError" in serverless environments
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
-// --- ADMIN ROUTES ---
+// ---------------- ROUTES ----------------
 
-// 1. Serve the Dashboard HTML
+// Health
+app.get('/', (req, res) => {
+    res.json({ message: "🚀 API Running" });
+});
+
+// Dashboard
 app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, '../views/dashboard.html'));
 });
 
-// 2. API to get all users
+// ---------------- VERIFY / LOGIN ----------------
+app.post('/api/verify', async (req, res) => {
+    await connectDB();
+
+    const { mobile, seller_name, gst_number, email, hwid } = req.body;
+
+    if (!mobile) {
+        return res.json({ success: false, message: "Mobile required" });
+    }
+
+    let user = await User.findOne({ mobile });
+
+    // Create new user
+    if (!user) {
+        user = await User.create({
+            mobile,
+            seller_name,
+            gst_number,
+            email,
+            hwid,
+            is_verified: 1
+        });
+    } else {
+        // Update existing user
+        user.seller_name = seller_name;
+        user.gst_number = gst_number;
+        user.email = email;
+
+        // Lock device (optional)
+        if (!user.hwid) user.hwid = hwid;
+
+        await user.save();
+    }
+
+    // Block check
+    if (user.is_verified !== 1) {
+        return res.json({ success: false, message: "User Blocked" });
+    }
+
+    return res.json({ success: true, data: user });
+});
+
+// ---------------- ADMIN APIs ----------------
+
+// Get all users
 app.get('/api/admin/users', async (req, res) => {
-    try {
-        await connectDB(); 
-        const users = await User.find().sort({ reg_date: -1 });
-        res.json(users);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    await connectDB();
+    const users = await User.find().sort({ reg_date: -1 });
+    res.json(users);
 });
 
-// 3. API to Verify/Block a user
+// Block / Unblock user
 app.post('/api/admin/update-status', async (req, res) => {
-    try {
-        await connectDB(); 
-        const { mobile, status } = req.body;
-        await User.findOneAndUpdate({ mobile }, { is_verified: status });
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+    await connectDB();
+
+    const { mobile, status } = req.body;
+
+    await User.findOneAndUpdate(
+        { mobile },
+        { is_verified: status }
+    );
+
+    res.json({ success: true });
 });
 
-// Root Health Check
-app.get('/', (req, res) => res.send("Management API is Live"));
-
-module.exports = app;
+// ---------------- EXPORT FOR VERCEL ----------------
+module.exports = async (req, res) => {
+    await connectDB();
+    return app(req, res);
+};
