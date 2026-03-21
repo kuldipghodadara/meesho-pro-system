@@ -117,6 +117,8 @@
                     <td>${u.mobile}</td>
                     <td>${u.seller_name || 'N/A'}</td>
                     <td>${u.gst_number || 'N/A'}</td>
+                    <td>${new Date(u.reg_date).toLocaleDateString()}</td>
+                    <td>${u.gst_number || 'N/A'}</td>
                     <td>${u.is_verified === 1 ? '✅ Verified' : u.is_verified === -1 ? '❌ Blocked' : '⏳ Trial'}</td>
                     <td>
                         <button class="btn btn-view" onclick="viewDetails('${u.mobile}')">View</button>
