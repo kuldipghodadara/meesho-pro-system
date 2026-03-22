@@ -94,21 +94,68 @@ app.post('/api/verify', async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 });
+// --- ADMIN: UPDATE USER STATUS (Block/Unblock) ---
+app.post('/api/admin/update-status', async (req, res) => {
+    try {
+        await connectDB();
+        const { mobile, status } = req.body; // status: 0=Trial, 1=Active, -1=Blocked
 
-// --- ADD THIS DELETE ROUTE ---
+        if (!mobile) {
+            return res.status(400).json({ success: false, message: "Mobile number required" });
+        }
+
+        const user = await User.findOneAndUpdate(
+            { mobile },
+            { is_verified: status },
+            { new: true }
+        );
+
+        if (user) {
+            res.json({ success: true, message: "Status updated successfully" });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// --- ADMIN: DELETE USER ---
 app.post('/api/admin/delete-user', async (req, res) => {
     try {
         await connectDB();
         const { mobile } = req.body;
-        
+
         if (!mobile) {
             return res.status(400).json({ success: false, message: "Mobile number required" });
         }
 
         const result = await User.findOneAndDelete({ mobile });
-        
+
         if (result) {
             res.json({ success: true, message: "User deleted successfully" });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// --- ADMIN: UPDATE SUBSCRIPTION/EXPIRY ---
+app.post('/api/admin/update-subscription', async (req, res) => {
+    try {
+        await connectDB();
+        const { mobile, plan, expiry_date } = req.body;
+        
+        const user = await User.findOneAndUpdate(
+            { mobile },
+            { plan, expiry_date, is_verified: 1 },
+            { new: true }
+        );
+
+        if (user) {
+            res.json({ success: true, message: "Subscription updated" });
         } else {
             res.status(404).json({ success: false, message: "User not found" });
         }
