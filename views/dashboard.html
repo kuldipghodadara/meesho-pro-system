@@ -216,6 +216,10 @@
             const user = allUsers.find(u => u.mobile === mobile);
             const content = document.getElementById('modalContent');
             const expiryVal = user.expiry_date ? user.expiry_date.split('T')[0] : '';
+            const regDateTime = user.reg_date 
+    ? new Date(user.reg_date).toLocaleDateString() + ' ' + 
+      new Date(user.reg_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
+    : 'N/A';
 
             content.innerHTML = `
                 <div class="info-row"><span class="label">Seller Name:</span> <span>${user.seller_name || 'N/A'}</span></div>
@@ -224,8 +228,10 @@
                 <div class="info-row"><span class="label">GST Number:</span> <span>${user.gst_number || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">User Password:</span> <span>${user.password || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">IP Address:</span> <span style="color:var(--primary)">${user.user_ip || 'N/A'}</span></div>
-                <div class="info-row"><span class="label">Reg Date:</span> <span>${new Date(user.reg_date).toLocaleDateString()}</span></div>
-                
+<div class="info-row">
+        <span class="label">Reg Date:</span> 
+        <span>${regDateTime}</span>
+    </div>                
                 <div class="manual-box">
                     <label class="label" style="display:block; margin-bottom:8px;">MANUAL EXPIRY SET:</label>
                     <input type="date" class="plan-select" style="width:100%;" 
