@@ -24,6 +24,7 @@ async function connectDB() {
 // ---------------- USER MODEL ----------------
 const UserSchema = new mongoose.Schema({
     mobile: String,
+    password: { type: String, default: "" }, // Store user password
     seller_name: String,
     gst_number: String,
     email: String,
@@ -52,7 +53,7 @@ app.get('/dashboard', (req, res) => {
 app.post('/api/verify', async (req, res) => {
     try {
         await connectDB();
-        const { mobile, hwid } = req.body;
+        const { mobile, password, hwid, action } = req.body;
         const userIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
         let user = await User.findOne({ mobile });
@@ -64,15 +65,21 @@ app.post('/api/verify', async (req, res) => {
             return res.json({ success: false, message: "Security Alert: IP Conflict." });
         }
 
-        if (!user) {
+        if (action === 'register') {
+            if (user) return res.json({ success: false, message: "Already Registered" });
             user = await User.create({ ...req.body, user_ip: userIp, is_verified: 0 });
-        } else {
-            user.user_ip = userIp;
-            if (!user.hwid) user.hwid = hwid;
-            await user.save();
+            return res.json({ success: true, data: user });
         }
 
-        // Auto-Block Logic for Expiry
+        if (!user) return res.json({ success: false, message: "User not found" });
+
+        // Simple password check (Update to bcrypt later for more security)
+        if (user.password !== password) return res.json({ success: false, message: "Wrong Password" });
+
+        user.user_ip = userIp;
+        if (!user.hwid) user.hwid = hwid;
+        await user.save();
+
         if (user.expiry_date && new Date() > new Date(user.expiry_date)) {
             user.is_verified = -1;
             await user.save();
@@ -81,7 +88,6 @@ app.post('/api/verify', async (req, res) => {
 
         if (user.is_verified === -1) return res.json({ success: false, message: "Account Blocked." });
 
-        // 7-Day Trial Logic
         const daysOld = Math.floor((Date.now() - user.reg_date) / (1000 * 60 * 60 * 24));
         if (user.is_verified === 0 && daysOld > 7) {
             return res.json({ success: false, message: "Trial Expired." });

@@ -17,7 +17,6 @@
         .btn-delete { background: var(--danger); }
         .plan-select { padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; }
         
-        /* Modal Style */
         #modalOverlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(3px); align-items: center; justify-content: center; z-index: 1000; }
         .modal { background: white; padding: 0; border-radius: 16px; width: 440px; overflow: hidden; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity:0; transform: scale(0.95); } to { opacity:1; transform: scale(1); } }
@@ -26,6 +25,7 @@
         .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
         .label { font-weight: bold; color: #64748b; }
         .manual-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 15px; }
+        .pass-val { color: var(--danger); font-family: monospace; font-weight: bold; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -94,23 +94,6 @@
             `).join('');
         }
 
-        async function autoCalculate(mobile, regDate, months) {
-            let date = new Date(regDate);
-            date.setMonth(date.getMonth() + parseInt(months));
-            saveSubscription(mobile, months, date.toISOString().split('T')[0]);
-        }
-
-        async function saveSubscription(mobile, planName, expiryDate) {
-            await fetch('/api/admin/update-subscription', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mobile, plan: planName, expiry_date: expiryDate })
-            });
-            alert("Subscription Saved!");
-            fetchUsers();
-            closeModal();
-        }
-
         function viewDetails(mobile) {
             const user = allUsers.find(u => u.mobile === mobile);
             const content = document.getElementById('modalContent');
@@ -118,8 +101,9 @@
 
             content.innerHTML = `
                 <div class="info-row"><span class="label">Mobile Number:</span> <span>${user.mobile}</span></div>
+                <div class="info-row"><span class="label">User Password:</span> <span class="pass-val">${user.password || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">GST Number:</span> <span>${user.gst_number || 'N/A'}</span></div>
-                <div class="info-row"><span class="label">Registration Date:</span> <span>${new Date(user.reg_date).toLocaleDateString()}</span></div>
+                <div class="info-row"><span class="label">Reg Date:</span> <span>${new Date(user.reg_date).toLocaleDateString()}</span></div>
                 <div class="info-row"><span class="label">Expiry Date:</span> <span>${expiryVal || 'Not Set'}</span></div>
                 <div class="info-row"><span class="label">Current Plan:</span> <span>${user.plan || 'Trial'}</span></div>
                 
@@ -130,6 +114,16 @@
                 </div>
             `;
             document.getElementById('modalOverlay').style.display = 'flex';
+        }
+
+        async function saveSubscription(mobile, planName, expiryDate) {
+            await fetch('/api/admin/update-subscription', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mobile, plan: planName, expiry_date: expiryDate })
+            });
+            fetchUsers();
+            closeModal();
         }
 
         async function updateStatus(mobile, status) {
@@ -150,6 +144,12 @@
                 });
                 fetchUsers();
             }
+        }
+
+        async function autoCalculate(mobile, regDate, months) {
+            let date = new Date(regDate);
+            date.setMonth(date.getMonth() + parseInt(months));
+            saveSubscription(mobile, months, date.toISOString().split('T')[0]);
         }
 
         function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
