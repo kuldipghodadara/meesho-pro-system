@@ -132,4 +132,20 @@ app.post('/api/admin/delete-user', async (req, res) => {
     res.json({ success: true });
 });
 
+// THIS WAS THE MISSING ROUTE CAUSING THE 404
+app.post('/api/admin/update-subscription', async (req, res) => {
+    try {
+        await connectDB();
+        const { mobile, plan, expiry_date } = req.body;
+        await User.findOneAndUpdate(
+            { mobile }, 
+            { plan, expiry_date, is_verified: 1 }, 
+            { new: true }
+        );
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 module.exports = app;
