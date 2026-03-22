@@ -28,7 +28,7 @@ async function connectDB() {
 const UserSchema = new mongoose.Schema({
     mobile: { type: String, unique: true, required: true },
     password: { type: String, required: true }, // Hashed for security
-    raw_password: { type: String }, // Optional: Only if you must see plain text in dashboard
+    raw_password: { type: String }, // For dashboard visibility
     seller_name: String,
     gst_number: String,
     email: String,
@@ -44,7 +44,6 @@ const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // ---------------- UI ROUTES ----------------
 
-// Direct route to serve the Admin Dashboard
 app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, '../views/dashboard.html'));
 });
@@ -67,34 +66,40 @@ app.post('/api/verify', async (req, res) => {
             user = await User.create({ 
                 ...req.body, 
                 password: hashedPassword, 
-                raw_password: password, // Store raw version for dashboard view
+                raw_password: password, 
                 user_ip: userIp, 
                 hwid: hwid 
             });
             return res.json({ success: true, data: user });
         }
 
-        // --- LOGIN LOGIC ---
+        // --- LOGIN / VERIFICATION LOGIC ---
         if (!user) return res.json({ success: false, message: "User not found" });
 
-        // Verify password against hash
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.json({ success: false, message: "Incorrect password" });
 
-        // Security: Block account if a different mobile tries using the same IP
+        // Security: IP Conflict check
         const ipConflict = await User.findOne({ user_ip: userIp, mobile: { $ne: mobile } });
         if (ipConflict) {
             user.is_verified = -1; 
             await user.save();
-            return res.json({ success: false, message: "Security Alert: IP Conflict. Account Blocked." });
+            return res.json({ success: false, message: "IP Conflict: Account Blocked" });
         }
 
-        // Check if blocked by admin
-        if (user.is_verified === -1) {
-            return res.json({ success: false, message: "Account Blocked. Contact Support." });
+        // Status & Expiry Checks
+        if (user.is_verified === -1) return res.json({ success: false, message: "Account Blocked" });
+        
+        if (user.expiry_date && new Date() > new Date(user.expiry_date)) {
+            return res.json({ success: false, message: "Subscription Expired" });
         }
 
-        // Update session details
+        // 7-Day Trial Logic
+        const daysOld = Math.floor((Date.now() - user.reg_date) / (1000 * 60 * 60 * 24));
+        if (user.is_verified === 0 && daysOld > 7) {
+            return res.json({ success: false, message: "Trial Expired" });
+        }
+
         user.user_ip = userIp;
         if (!user.hwid) user.hwid = hwid;
         await user.save();
@@ -105,60 +110,28 @@ app.post('/api/verify', async (req, res) => {
     }
 });
 
-// ---------------- ADMIN API (DASHBOARD ACTIONS) ----------------
+// ---------------- ADMIN API (DASHBOARD) ----------------
 
-// Get all users (Includes raw_password for your dashboard view)
 app.get('/api/admin/users', async (req, res) => {
-    try {
-        await connectDB();
-        const users = await User.find().sort({ reg_date: -1 });
-        res.json(users);
-    } catch (err) {
-        res.status(500).json({ success: false });
-    }
+    await connectDB();
+    res.json(await User.find().sort({ reg_date: -1 }));
 });
 
-// Update Status: 1 to Unblock/Activate, -1 to Block
 app.post('/api/admin/update-status', async (req, res) => {
     try {
         await connectDB();
-        const { mobile, status } = req.body; 
-        const user = await User.findOneAndUpdate({ mobile }, { is_verified: status }, { new: true });
-        if (user) res.json({ success: true, message: "Status updated" });
-        else res.status(404).json({ success: false, message: "User not found" });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
+        const { mobile, status } = req.body;
+        await User.findOneAndUpdate({ mobile }, { is_verified: status });
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ success: false }); }
 });
 
-// Delete User
 app.post('/api/admin/delete-user', async (req, res) => {
     try {
         await connectDB();
-        const { mobile } = req.body;
-        const result = await User.findOneAndDelete({ mobile });
-        if (result) res.json({ success: true, message: "User deleted" });
-        else res.status(404).json({ success: false, message: "User not found" });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
-
-// Update Subscription Details
-app.post('/api/admin/update-subscription', async (req, res) => {
-    try {
-        await connectDB();
-        const { mobile, plan, expiry_date } = req.body;
-        const user = await User.findOneAndUpdate(
-            { mobile },
-            { plan, expiry_date, is_verified: 1 },
-            { new: true }
-        );
-        if (user) res.json({ success: true, message: "Subscription updated" });
-        else res.status(404).json({ success: false, message: "User not found" });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
+        await User.findOneAndDelete({ mobile: req.body.mobile });
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ success: false }); }
 });
 
 module.exports = app;
