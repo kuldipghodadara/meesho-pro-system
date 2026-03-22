@@ -163,6 +163,7 @@
             const expiryVal = user.expiry_date ? user.expiry_date.split('T')[0] : '';
 
             content.innerHTML = `
+                <div class="info-row"><span class="label">Sellar Name:</span> <span>${user.seller_name || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">Mobile:</span> <span>${user.mobile}</span></div>
                 <div class="info-row"><span class="label">Email:</span> <span>${user.email || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">GST Number:</span> <span>${user.gst_number || 'N/A'}</span></div>
