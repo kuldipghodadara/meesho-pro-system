@@ -45,6 +45,26 @@ app.get('/api/admin/users', async (req, res) => {
 });
 
 
+// --- NEW ROUTE: UPDATE USER PROFILE ---
+app.post('/api/update-profile', async (req, res) => {
+    try {
+        await connectDB();
+        const { mobile, seller_name, gst_number, email } = req.body;
+        
+        const updatedUser = await User.findOneAndUpdate(
+            { mobile },
+            { seller_name, gst_number, email },
+            { new: true }
+        );
+
+        if (!updatedUser) return res.json({ success: false, message: "User not found" });
+        res.json({ success: true, data: updatedUser });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+
 app.post('/api/admin/update-subscription', async (req, res) => {
     try {
         await connectDB();
@@ -95,7 +115,7 @@ app.post('/api/verify', async (req, res) => {
         if (action === 'login') {
             if (!user) {
                 // If user was deleted from dashboard, return failure. DO NOT CREATE.
-                return res.json({ success: false, message: "Account deleted by administrator." });
+                return res.json({ success: false, message: "Account not found." });
             }
             if (password && user.password !== password) {
                 return res.json({ success: false, message: "Invalid credentials." });
