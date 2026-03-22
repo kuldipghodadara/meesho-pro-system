@@ -78,47 +78,53 @@ app.post('/api/verify', async (req, res) => {
     try {
         await connectDB();
         const { mobile, password, action } = req.body;
+        
+        let rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        let userIp = rawIp.includes(',') ? rawIp.split(',')[0].trim() : rawIp;
 
-        // 1. Check if user exists
+        // 1. FIND THE USER
         let user = await User.findOne({ mobile });
 
-        // 2. LOGOUT ACTION
+        // 2. LOGOUT LOGIC
         if (action === 'logout') {
             if (user) { user.is_online = false; await user.save(); }
             return res.json({ success: true });
         }
 
-        // 3. LOGIN / HEARTBEAT ACTION (The Fix)
+        // 3. LOGIN / HEARTBEAT LOGIC (THE FIX)
         if (action === 'login') {
             if (!user) {
-                // Return failure if user was deleted. DO NOT CREATE NEW USER.
-                return res.json({ success: false, message: "Account deleted or not found." });
+                // If user was deleted from dashboard, return failure. DO NOT CREATE.
+                return res.json({ success: false, message: "Account deleted by administrator." });
             }
             if (password && user.password !== password) {
                 return res.json({ success: false, message: "Invalid credentials." });
             }
             if (user.is_verified === -1) {
-                return res.json({ success: false, message: "Account blocked by admin." });
+                return res.json({ success: false, message: "Account blocked." });
             }
 
-            // User is valid, update online status
+            // User exists and is valid, just update status
+            user.user_ip = userIp;
             user.is_online = true;
             await user.save();
             return res.json({ success: true, data: user });
         }
 
-        // 4. REGISTER ACTION (Only this creates new users)
+        // 4. REGISTRATION LOGIC
         if (action === 'register') {
-            if (user) return res.json({ success: false, message: "User already exists." });
-
+            if (user) return res.json({ success: false, message: "User already exists. Please Login." });
+            
             const newUser = new User({
                 mobile,
                 password,
                 seller_name: req.body.seller_name,
                 gst_number: req.body.gst_number,
                 email: req.body.email,
-                is_verified: 0, 
-                is_online: true
+                user_ip: userIp,
+                is_online: true,
+                plan: "Trial",
+                is_verified: 0 // Waiting for admin approval
             });
             await newUser.save();
             return res.json({ success: true, data: newUser });
