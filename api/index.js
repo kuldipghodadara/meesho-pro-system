@@ -44,8 +44,36 @@ app.get('/api/admin/users', async (req, res) => {
     }
 });
 
+
+app.post('/api/admin/update-subscription', async (req, res) => {
+    try {
+        await connectDB();
+        const { mobile, plan, expiry_date } = req.body;
+        await User.findOneAndUpdate(
+            { mobile }, 
+            { plan, expiry_date, is_verified: 1 }, 
+            { new: true }
+        );
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.post('/api/admin/update-status', async (req, res) => {
+    await connectDB();
+    const { mobile, status } = req.body;
+    await User.findOneAndUpdate({ mobile }, { is_verified: status });
+    res.json({ success: true });
+});
+
+app.post('/api/admin/delete-user', async (req, res) => {
+    await connectDB();
+    await User.findOneAndDelete({ mobile: req.body.mobile });
+    res.json({ success: true });
+});
+
 // --- ROUTE: APP VERIFICATION & HEARTBEAT ---
-// api/index.js
 app.post('/api/verify', async (req, res) => {
     try {
         await connectDB();
