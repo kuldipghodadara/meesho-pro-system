@@ -51,63 +51,57 @@ app.get('/dashboard', (req, res) => {
 });
 
 // ---------------- CLIENT API: VERIFY & AUTO-BLOCK ----------------
+// api/index.js
 app.post('/api/verify', async (req, res) => {
     try {
         await connectDB();
-        const { mobile, password, hwid, action } = req.body;
-        
-        // --- NATIVE IPV6 EXTRACTION ---
-        let rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-        let userIp = rawIp.includes(',') ? rawIp.split(',')[0].trim() : rawIp;
-        
-        // Check if IP is a Native IPv6 (Contains ':' but no '.')
-        const isNativeIpv6 = userIp.includes(':') && !userIp.includes('.');
+        const { mobile, password, action } = req.body;
 
+        // 1. Check if user exists
         let user = await User.findOne({ mobile });
 
-        // --- AUTO-BLOCK LOGIC (Strictly Native IPv6) ---
-        if (isNativeIpv6) {
-            const ipConflict = await User.findOne({ user_ip: userIp, mobile: { $ne: mobile } });
-            if (ipConflict) {
-                if (user) { 
-                    user.is_verified = -1; 
-                    user.is_online = false;
-                    await user.save(); 
-                }
-                return res.json({ success: false, message: "Security Alert: IPv6 Conflict. Account Blocked." });
-            }
-        }
-
-        // Handle Logout
+        // 2. LOGOUT ACTION
         if (action === 'logout') {
             if (user) { user.is_online = false; await user.save(); }
             return res.json({ success: true });
         }
 
-        if (!user) {
-            user = await User.create({ ...req.body, user_ip: userIp, is_verified: 0, is_online: true });
-        } else {
-            // Check credentials if logging in
-            if (password && user.password !== password) {
-                return res.json({ success: false, message: "Wrong Password" });
+        // 3. LOGIN / HEARTBEAT ACTION (The Fix)
+        if (action === 'login') {
+            if (!user) {
+                // Return failure if user was deleted. DO NOT CREATE NEW USER.
+                return res.json({ success: false, message: "Account deleted or not found." });
             }
-            user.user_ip = userIp;
-            user.is_online = true; // Mark as online
-            if (!user.hwid) user.hwid = hwid;
+            if (password && user.password !== password) {
+                return res.json({ success: false, message: "Invalid credentials." });
+            }
+            if (user.is_verified === -1) {
+                return res.json({ success: false, message: "Account blocked by admin." });
+            }
+
+            // User is valid, update online status
+            user.is_online = true;
             await user.save();
+            return res.json({ success: true, data: user });
         }
 
-        // Auto-Block Logic (Expiry)
-        if (user.expiry_date && new Date() > new Date(user.expiry_date)) {
-            user.is_verified = -1;
-            user.is_online = false;
-            await user.save();
-            return res.json({ success: false, message: "Subscription Expired." });
+        // 4. REGISTER ACTION (Only this creates new users)
+        if (action === 'register') {
+            if (user) return res.json({ success: false, message: "User already exists." });
+
+            const newUser = new User({
+                mobile,
+                password,
+                seller_name: req.body.seller_name,
+                gst_number: req.body.gst_number,
+                email: req.body.email,
+                is_verified: 0, 
+                is_online: true
+            });
+            await newUser.save();
+            return res.json({ success: true, data: newUser });
         }
 
-        if (user.is_verified === -1) return res.json({ success: false, message: "Account Blocked." });
-
-        res.json({ success: true, data: user });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
