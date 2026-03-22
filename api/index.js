@@ -1,4 +1,3 @@
-
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
@@ -30,9 +29,9 @@ const UserSchema = new mongoose.Schema({
     gst_number: String,
     email: String,
     hwid: String,
-    user_ip: String, // Stores IPv4 or IPv6
+    user_ip: String, // Stores IPv4 or full IPv6
     plan: { type: String, default: "Trial" }, 
-    is_verified: { type: Number, default: 0 }, 
+    is_verified: { type: Number, default: 0 }, // 0=Trial, 1=Active, -1=Blocked
     reg_date: { type: Date, default: Date.now },
     expiry_date: { type: Date, default: null } 
 });
@@ -50,26 +49,35 @@ app.get('/dashboard', (req, res) => {
     }
 });
 
-// ---------------- CLIENT API: VERIFY ----------------
+// ---------------- CLIENT API: VERIFY & AUTO-BLOCK ----------------
 app.post('/api/verify', async (req, res) => {
     try {
         await connectDB();
         const { mobile, password, hwid, action } = req.body;
         
-        // Improved IP Detection for IPv4 and IPv6
+        // --- IP EXTRACTION (IPv4 & IPv6 Support) ---
         let userIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-        if (userIp.includes(',')) userIp = userIp.split(',')[0]; // Handle Proxy arrays
-        userIp = userIp.replace('::ffff:', ''); // Clean IPv4-mapped-IPv6
+        if (userIp.includes(',')) userIp = userIp.split(',')[0].trim(); 
+        userIp = userIp.replace('::ffff:', ''); // Clean IPv4-mapped IPv6
 
         let user = await User.findOne({ mobile });
 
-        // Security: IP Conflict check
+        // --- AUTO-BLOCK LOGIC (IPv4/IPv6 Conflict) ---
+        // If this IP is used by another account, block this account immediately
         const ipConflict = await User.findOne({ user_ip: userIp, mobile: { $ne: mobile } });
+        
         if (ipConflict) {
-            if (user) { user.is_verified = -1; await user.save(); }
-            return res.json({ success: false, message: "Security Alert: IP Conflict." });
+            if (user) {
+                user.is_verified = -1; // Auto-block the existing user
+                await user.save();
+            }
+            return res.json({ 
+                success: false, 
+                message: `Security Alert: IP Conflict detected. Account Blocked.` 
+            });
         }
 
+        // Handle Registration
         if (action === 'register') {
             if (user) return res.json({ success: false, message: "Already Registered" });
             user = await User.create({ ...req.body, user_ip: userIp, is_verified: 0 });
@@ -84,6 +92,7 @@ app.post('/api/verify', async (req, res) => {
         if (!user.hwid) user.hwid = hwid;
         await user.save();
 
+        // Check Expiry
         if (user.expiry_date && new Date() > new Date(user.expiry_date)) {
             user.is_verified = -1;
             await user.save();
@@ -92,6 +101,7 @@ app.post('/api/verify', async (req, res) => {
 
         if (user.is_verified === -1) return res.json({ success: false, message: "Account Blocked." });
 
+        // Trial Period Check (7 Days)
         const daysOld = Math.floor((Date.now() - user.reg_date) / (1000 * 60 * 60 * 24));
         if (user.is_verified === 0 && daysOld > 7) {
             return res.json({ success: false, message: "Trial Expired." });

@@ -18,18 +18,18 @@
         .plan-select { padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; }
         
         #modalOverlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(3px); align-items: center; justify-content: center; z-index: 1000; }
-        .modal { background: white; padding: 0; border-radius: 16px; width: 460px; overflow: hidden; animation: fadeIn 0.2s; }
+        .modal { background: white; border-radius: 16px; width: 450px; overflow: hidden; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity:0; transform: scale(0.95); } to { opacity:1; transform: scale(1); } }
         .modal-head { background: var(--primary); color: white; padding: 15px 20px; font-size: 18px; font-weight: bold; }
         .modal-body { padding: 20px; }
         .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; align-items: center; }
         .label { font-weight: bold; color: #64748b; }
-        .val-text { font-family: monospace; font-size: 12px; word-break: break-all; text-align: right; max-width: 250px; }
+        .val-text { font-family: monospace; word-break: break-all; text-align: right; max-width: 250px; font-size: 12px; }
         .manual-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 15px; }
     </style>
 </head>
 <body>
-    <h1 style="color:var(--primary)">User Management Panel</h1>
+    <h1 style="color:var(--primary)">Meesho Pro Management</h1>
     
     <div class="container">
         <table>
@@ -38,7 +38,7 @@
                     <th>Mobile</th>
                     <th>Seller Name</th>
                     <th>Reg Date</th>
-                    <th>Set Plan</th>
+                    <th>Plan Selection</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -49,10 +49,10 @@
 
     <div id="modalOverlay">
         <div class="modal">
-            <div class="modal-head">Seller Profile Details</div>
+            <div class="modal-head">User Profile Details</div>
             <div class="modal-body" id="modalContent"></div>
             <div style="padding: 0 20px 20px;">
-                <button class="btn" style="background:#64748b; width:100%; padding:10px;" onclick="closeModal()">Close Profile</button>
+                <button class="btn" style="background:#64748b; width:100%; padding:10px;" onclick="closeModal()">Close</button>
             </div>
         </div>
     </div>
@@ -75,7 +75,7 @@
                     <td>${new Date(u.reg_date).toLocaleDateString()}</td>
                     <td>
                         <select class="plan-select" onchange="autoCalculate('${u.mobile}', '${u.reg_date}', this.value)">
-                            <option value="" disabled ${!u.plan || u.plan==='Trial' ? 'selected' : ''}>-- Choose Plan --</option>
+                            <option value="" disabled ${!u.plan || u.plan==='Trial' ? 'selected' : ''}>-- Set Plan --</option>
                             <option value="1" ${u.plan === '1' ? 'selected' : ''}>1 Month</option>
                             <option value="2" ${u.plan === '2' ? 'selected' : ''}>2 Month</option>
                             <option value="3" ${u.plan === '3' ? 'selected' : ''}>3 Month</option>
@@ -100,16 +100,16 @@
             const expiryVal = user.expiry_date ? user.expiry_date.split('T')[0] : '';
 
             content.innerHTML = `
-                <div class="info-row"><span class="label">Mobile Number:</span> <span class="val-text">${user.mobile}</span></div>
-                <div class="info-row"><span class="label">User Password:</span> <span class="val-text" style="color:var(--danger)">${user.password || 'N/A'}</span></div>
+                <div class="info-row"><span class="label">Mobile:</span> <span class="val-text">${user.mobile}</span></div>
+                <div class="info-row"><span class="label">Password:</span> <span class="val-text" style="color:var(--danger)">${user.password || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">IP Address:</span> <span class="val-text" style="color:var(--primary)">${user.user_ip || 'N/A'}</span></div>
-                <div class="info-row"><span class="label">GST Number:</span> <span class="val-text">${user.gst_number || 'N/A'}</span></div>
+                <div class="info-row"><span class="label">GST:</span> <span class="val-text">${user.gst_number || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">Reg Date:</span> <span class="val-text">${new Date(user.reg_date).toLocaleDateString()}</span></div>
                 <div class="info-row"><span class="label">Expiry Date:</span> <span class="val-text">${expiryVal || 'Not Set'}</span></div>
-                <div class="info-row"><span class="label">Current Plan:</span> <span class="val-text">${user.plan || 'Trial'}</span></div>
+                <div class="info-row"><span class="label">Plan:</span> <span class="val-text">${user.plan || 'Trial'}</span></div>
                 
                 <div class="manual-box">
-                    <label class="label" style="display:block; margin-bottom:8px;">MANUAL EXPIRY SELECT:</label>
+                    <label class="label" style="display:block; margin-bottom:8px;">MANUAL EXPIRY:</label>
                     <input type="date" class="plan-select" style="width:100%; box-sizing:border-box;" 
                            value="${expiryVal}" onchange="saveSubscription('${user.mobile}', 'Manual', this.value)">
                 </div>
@@ -137,7 +137,7 @@
         }
 
         async function deleteUser(mobile) {
-            if(confirm("Delete User Permanently?")) {
+            if(confirm("Delete Permanently?")) {
                 await fetch('/api/admin/delete-user', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
