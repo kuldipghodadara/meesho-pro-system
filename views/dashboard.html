@@ -7,7 +7,6 @@
         :root { --primary: #5f249f; --bg: #f8fafc; --text: #334155; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 25px; margin: 0; }
         
-        /* Tab Styling */
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
         .tab-btn { padding: 12px 24px; cursor: pointer; border: none; border-radius: 8px; background: #e2e8f0; font-weight: bold; color: #64748b; transition: 0.2s; }
         .tab-btn.active { background: var(--primary); color: white; }
@@ -120,59 +119,62 @@
             `).join('');
         }
 
-function renderConflictTable() {
-    const list = document.getElementById('conflictList');
-    const groups = {};
-    
-    allUsers.forEach(u => {
-        if (u.user_ip) {
-            if (!groups[u.user_ip]) groups[u.user_ip] = [];
-            groups[u.user_ip].push(u);
-        }
-    });
-
-    const conflicts = Object.keys(groups).filter(ip => groups[ip].length > 1);
-
-    list.innerHTML = conflicts.map(ip => {
-        const sortedUsers = groups[ip].sort((a, b) => new Date(a.reg_date) - new Date(b.reg_date));
-        
-        const userListHtml = sortedUsers.map((u, index) => {
-            const color = index === 0 ? 'var(--success)' : 'var(--danger)';
-            const label = index === 0 ? '[ORIGINAL]' : '[CONFLICT]';
-            const status = u.is_verified === -1 ? ' (Already Blocked)' : '';
+        function renderConflictTable() {
+            const list = document.getElementById('conflictList');
+            const groups = {};
             
-            return `
-                <div style="margin-bottom: 5px;">
-                    <b style="color: ${color}">${u.mobile}</b> 
-                    <span style="font-size: 11px; color: #64748b;">(${u.seller_name || 'N/A'})</span>
-                    <small style="color: ${color}; font-size: 10px; margin-left: 5px;">${label}${status}</small>
-                </div>
-            `;
-        }).join('');
+            allUsers.forEach(u => {
+                if (u.user_ip) {
+                    if (!groups[u.user_ip]) groups[u.user_ip] = [];
+                    groups[u.user_ip].push(u);
+                }
+            });
 
-        return `
-            <tr>
-                <td>
-                    <span class="conflict-tag">${ip}</span>
-                </td>
-                <td>${userListHtml}</td>
-                <td>
-                    <button class="btn btn-block" onclick="blockConflicts('${ip}')">
-                        Block All Conflicts
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-    
-    if(conflicts.length === 0) {
-        list.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px;">No IP conflicts found.</td></tr>';
-    }
-}
-async function blockConflicts(ip) {
-            if (!confirm(`Are you sure you want to block all secondary accounts on IP: ${ip}? The original (first) account will remain active.`)) {
-                return;
+            const conflicts = Object.keys(groups).filter(ip => groups[ip].length > 1);
+
+            list.innerHTML = conflicts.map(ip => {
+                // Sort by registration date: oldest (original) first
+                const sortedUsers = groups[ip].sort((a, b) => new Date(a.reg_date) - new Date(b.reg_date));
+                const latestUser = sortedUsers[sortedUsers.length - 1];
+                
+                const userListHtml = sortedUsers.map((u, index) => {
+                    const color = index === 0 ? 'var(--success)' : 'var(--danger)';
+                    const label = index === 0 ? '[ORIGINAL]' : '[CONFLICT]';
+                    const blockedStatus = u.is_verified === -1 ? ' (Blocked)' : '';
+                    
+                    return `
+                        <div style="margin-bottom: 5px;">
+                            <b style="color: ${color}">${u.mobile}</b> 
+                            <span style="font-size: 11px; color: #64748b;">(${u.seller_name || 'N/A'})</span>
+                            <small style="color: ${color}; font-size: 10px; margin-left: 5px;">${label}${blockedStatus}</small>
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <tr>
+                        <td><span class="conflict-tag">${ip}</span></td>
+                        <td>${userListHtml}</td>
+                        <td>
+                            <div>${new Date(latestUser.reg_date).toLocaleDateString()}</div>
+                            <small style="color: #64748b;">${new Date(latestUser.reg_date).toLocaleTimeString()}</small>
+                        </td>
+                        <td>
+                            <button class="btn btn-block" onclick="blockConflicts('${ip}')">
+                                Block All Conflicts
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            if(conflicts.length === 0) {
+                list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">No IP conflicts found.</td></tr>';
             }
+        }
+
+        async function blockConflicts(ip) {
+            if (!confirm(`Block all secondary accounts on IP: ${ip}? The first registered account will stay active.`)) return;
 
             try {
                 const res = await fetch('/api/admin/block-conflicts', {
@@ -183,16 +185,16 @@ async function blockConflicts(ip) {
                 const data = await res.json();
                 
                 if (data.success) {
-                    alert(`Success! Blocked ${data.blockedCount} conflict accounts.`);
-                    fetchUsers(); // Refresh the tables
+                    alert(`Success! Blocked ${data.blockedCount} secondary accounts.`);
+                    fetchUsers();
                 } else {
-                    alert("Error: " + (data.message || "Failed to block users"));
+                    alert("Error: " + (data.message || "Action failed"));
                 }
             } catch (err) {
-                console.error(err);
-                alert("Failed to connect to server.");
+                alert("Server Connection Failed");
             }
         }
+
         function switchTab(tab) {
             document.getElementById('viewUsers').style.display = tab === 'users' ? 'block' : 'none';
             document.getElementById('viewConflicts').style.display = tab === 'conflicts' ? 'block' : 'none';
@@ -206,7 +208,7 @@ async function blockConflicts(ip) {
             const expiryVal = user.expiry_date ? user.expiry_date.split('T')[0] : '';
 
             content.innerHTML = `
-                <div class="info-row"><span class="label">Sellar Name:</span> <span>${user.seller_name || 'N/A'}</span></div>
+                <div class="info-row"><span class="label">Seller Name:</span> <span>${user.seller_name || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">Mobile:</span> <span>${user.mobile}</span></div>
                 <div class="info-row"><span class="label">Email:</span> <span>${user.email || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">GST Number:</span> <span>${user.gst_number || 'N/A'}</span></div>
