@@ -95,6 +95,28 @@ app.post('/api/verify', async (req, res) => {
     }
 });
 
+// --- ADD THIS DELETE ROUTE ---
+app.post('/api/admin/delete-user', async (req, res) => {
+    try {
+        await connectDB();
+        const { mobile } = req.body;
+        
+        if (!mobile) {
+            return res.status(400).json({ success: false, message: "Mobile number required" });
+        }
+
+        const result = await User.findOneAndDelete({ mobile });
+        
+        if (result) {
+            res.json({ success: true, message: "User deleted successfully" });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // Admin APIs
 app.get('/api/admin/users', async (req, res) => {
     await connectDB();
