@@ -1,3 +1,4 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
@@ -24,14 +25,14 @@ async function connectDB() {
 // ---------------- USER MODEL ----------------
 const UserSchema = new mongoose.Schema({
     mobile: String,
-    password: { type: String, default: "" }, // Store user password
+    password: { type: String, default: "" },
     seller_name: String,
     gst_number: String,
     email: String,
     hwid: String,
-    user_ip: String,
+    user_ip: String, // Stores IPv4 or IPv6
     plan: { type: String, default: "Trial" }, 
-    is_verified: { type: Number, default: 0 }, // 0=Trial, 1=Active, -1=Blocked
+    is_verified: { type: Number, default: 0 }, 
     reg_date: { type: Date, default: Date.now },
     expiry_date: { type: Date, default: null } 
 });
@@ -54,11 +55,15 @@ app.post('/api/verify', async (req, res) => {
     try {
         await connectDB();
         const { mobile, password, hwid, action } = req.body;
-        const userIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        
+        // Improved IP Detection for IPv4 and IPv6
+        let userIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        if (userIp.includes(',')) userIp = userIp.split(',')[0]; // Handle Proxy arrays
+        userIp = userIp.replace('::ffff:', ''); // Clean IPv4-mapped-IPv6
 
         let user = await User.findOne({ mobile });
 
-        // Security: Block if different mobile uses same IP
+        // Security: IP Conflict check
         const ipConflict = await User.findOne({ user_ip: userIp, mobile: { $ne: mobile } });
         if (ipConflict) {
             if (user) { user.is_verified = -1; await user.save(); }
@@ -72,10 +77,9 @@ app.post('/api/verify', async (req, res) => {
         }
 
         if (!user) return res.json({ success: false, message: "User not found" });
-
-        // Simple password check (Update to bcrypt later for more security)
         if (user.password !== password) return res.json({ success: false, message: "Wrong Password" });
 
+        // Update session details
         user.user_ip = userIp;
         if (!user.hwid) user.hwid = hwid;
         await user.save();

@@ -18,14 +18,14 @@
         .plan-select { padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; }
         
         #modalOverlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(3px); align-items: center; justify-content: center; z-index: 1000; }
-        .modal { background: white; padding: 0; border-radius: 16px; width: 440px; overflow: hidden; animation: fadeIn 0.2s; }
+        .modal { background: white; padding: 0; border-radius: 16px; width: 460px; overflow: hidden; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity:0; transform: scale(0.95); } to { opacity:1; transform: scale(1); } }
         .modal-head { background: var(--primary); color: white; padding: 15px 20px; font-size: 18px; font-weight: bold; }
         .modal-body { padding: 20px; }
-        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; align-items: center; }
         .label { font-weight: bold; color: #64748b; }
+        .val-text { font-family: monospace; font-size: 12px; word-break: break-all; text-align: right; max-width: 250px; }
         .manual-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 15px; }
-        .pass-val { color: var(--danger); font-family: monospace; font-weight: bold; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -100,12 +100,13 @@
             const expiryVal = user.expiry_date ? user.expiry_date.split('T')[0] : '';
 
             content.innerHTML = `
-                <div class="info-row"><span class="label">Mobile Number:</span> <span>${user.mobile}</span></div>
-                <div class="info-row"><span class="label">User Password:</span> <span class="pass-val">${user.password || 'N/A'}</span></div>
-                <div class="info-row"><span class="label">GST Number:</span> <span>${user.gst_number || 'N/A'}</span></div>
-                <div class="info-row"><span class="label">Reg Date:</span> <span>${new Date(user.reg_date).toLocaleDateString()}</span></div>
-                <div class="info-row"><span class="label">Expiry Date:</span> <span>${expiryVal || 'Not Set'}</span></div>
-                <div class="info-row"><span class="label">Current Plan:</span> <span>${user.plan || 'Trial'}</span></div>
+                <div class="info-row"><span class="label">Mobile Number:</span> <span class="val-text">${user.mobile}</span></div>
+                <div class="info-row"><span class="label">User Password:</span> <span class="val-text" style="color:var(--danger)">${user.password || 'N/A'}</span></div>
+                <div class="info-row"><span class="label">IP Address:</span> <span class="val-text" style="color:var(--primary)">${user.user_ip || 'N/A'}</span></div>
+                <div class="info-row"><span class="label">GST Number:</span> <span class="val-text">${user.gst_number || 'N/A'}</span></div>
+                <div class="info-row"><span class="label">Reg Date:</span> <span class="val-text">${new Date(user.reg_date).toLocaleDateString()}</span></div>
+                <div class="info-row"><span class="label">Expiry Date:</span> <span class="val-text">${expiryVal || 'Not Set'}</span></div>
+                <div class="info-row"><span class="label">Current Plan:</span> <span class="val-text">${user.plan || 'Trial'}</span></div>
                 
                 <div class="manual-box">
                     <label class="label" style="display:block; margin-bottom:8px;">MANUAL EXPIRY SELECT:</label>
