@@ -124,4 +124,32 @@ app.post('/api/verify', async (req, res) => {
     }
 });
 
+// --- NEW ROUTE: BLOCK ALL CONFLICTS FOR AN IP ---
+app.post('/api/admin/block-conflicts', async (req, res) => {
+    try {
+        await connectDB();
+        const { ip } = req.body;
+        
+        // Find all users with this IP, sorted by registration date
+        const users = await User.find({ user_ip: ip }).sort({ reg_date: 1 });
+
+        if (users.length <= 1) {
+            return res.json({ success: true, message: "No conflicts to block." });
+        }
+
+        // Extract mobiles of all users except the first one (the original)
+        const conflictMobiles = users.slice(1).map(u => u.mobile);
+
+        // Update all conflict accounts to status -1 (Blocked)
+        await User.updateMany(
+            { mobile: { $in: conflictMobiles } },
+            { is_verified: -1 }
+        );
+
+        res.json({ success: true, blockedCount: conflictMobiles.length });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 module.exports = app;
