@@ -2,12 +2,14 @@ const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
 const cors = require('cors');
-const fs = require('fs');
-const bcrypt = require('bcryptjs'); // Recommended for password security
+const bcrypt = require('bcryptjs'); // Install using: npm install bcryptjs
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from the 'views' directory
+app.use(express.static(path.join(__dirname, '../views')));
 
 // ---------------- DB CONNECTION ----------------
 let isConnected = false;
@@ -18,28 +20,34 @@ async function connectDB() {
         await mongoose.connect(process.env.MONGODB_URI);
         isConnected = true;
     } catch (err) {
-        console.error("MongoDB Connection Error:", err.message);
+        console.error("MongoDB Error:", err.message);
     }
 }
 
 // ---------------- USER MODEL ----------------
 const UserSchema = new mongoose.Schema({
     mobile: { type: String, unique: true, required: true },
-    password: { type: String, required: true },
+    password: { type: String, required: true }, // Encrypted
     seller_name: String,
     gst_number: String,
     email: String,
     hwid: String,
     user_ip: String,
     plan: { type: String, default: "Trial" }, 
-    is_verified: { type: Number, default: 0 }, // 0=Trial, 1=Active, -1=Blocked
+    is_verified: { type: Number, default: 0 },
     reg_date: { type: Date, default: Date.now },
     expiry_date: { type: Date, default: null } 
 });
 
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
-// ---------------- CLIENT API: VERIFY ----------------
+// ---------------- ROUTES ----------------
+
+// Fix: Serve the dashboard.html file when /dashboard is accessed
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, '../views/dashboard.html'));
+});
+
 app.post('/api/verify', async (req, res) => {
     try {
         await connectDB();
@@ -48,80 +56,49 @@ app.post('/api/verify', async (req, res) => {
 
         let user = await User.findOne({ mobile });
 
-        // Security: Block if different mobile uses same IP
-        const ipConflict = await User.findOne({ user_ip: userIp, mobile: { $ne: mobile } });
-        if (ipConflict) {
-            if (user) { user.is_verified = -1; await user.save(); }
-            return res.json({ success: false, message: "Security Alert: IP Conflict Detected." });
-        }
-
-        // --- REGISTRATION LOGIC ---
+        // --- REGISTRATION LOGIC WITH PASSWORD ENCRYPTION ---
         if (action === 'register') {
-            if (user) return res.json({ success: false, message: "Account already exists. Please login." });
+            if (user) return res.json({ success: false, message: "Account already exists" });
             
             const hashedPassword = await bcrypt.hash(password, 10);
             user = await User.create({ 
                 ...req.body, 
                 password: hashedPassword, 
                 user_ip: userIp, 
-                hwid: hwid,
-                is_verified: 0 
+                hwid: hwid 
             });
             return res.json({ success: true, data: user });
         }
 
-        // --- LOGIN / VERIFICATION LOGIC ---
-        if (!user) return res.json({ success: false, message: "Account not found." });
+        // --- LOGIN LOGIC WITH PASSWORD CHECK ---
+        if (!user) return res.json({ success: false, message: "User not found" });
 
-        // Validate Password
+        // Compare provided password with hashed password in DB
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.json({ success: false, message: "Incorrect password." });
+        if (!isMatch) return res.json({ success: false, message: "Incorrect password" });
 
-        // Update session info
+        // Security: IP Conflict check
+        const ipConflict = await User.findOne({ user_ip: userIp, mobile: { $ne: mobile } });
+        if (ipConflict) {
+            user.is_verified = -1; 
+            await user.save();
+            return res.json({ success: false, message: "IP Conflict: Account Blocked" });
+        }
+
         user.user_ip = userIp;
         if (!user.hwid) user.hwid = hwid;
         await user.save();
 
-        // Security Checks
-        if (user.is_verified === -1) return res.json({ success: false, message: "Account Blocked." });
-
-        if (user.expiry_date && new Date() > new Date(user.expiry_date)) {
-            user.is_verified = -1;
-            await user.save();
-            return res.json({ success: false, message: "Subscription Expired." });
-        }
-
-        // 7-Day Trial Logic
-        const daysOld = Math.floor((Date.now() - user.reg_date) / (1000 * 60 * 60 * 24));
-        if (user.is_verified === 0 && daysOld > 7) {
-            return res.json({ success: false, message: "Trial Expired. Contact admin for activation." });
-        }
-
         res.json({ success: true, data: user });
     } catch (err) {
-        res.status(500).json({ success: false, message: "Server Error: " + err.message });
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
-// ---------------- ADMIN APIs ----------------
+// Admin APIs
 app.get('/api/admin/users', async (req, res) => {
     await connectDB();
-    const users = await User.find().sort({ reg_date: -1 });
-    res.json(users);
-});
-
-app.post('/api/admin/update-subscription', async (req, res) => {
-    await connectDB();
-    const { mobile, plan, expiry_date } = req.body;
-    await User.findOneAndUpdate({ mobile }, { plan, expiry_date, is_verified: 1 });
-    res.json({ success: true });
-});
-
-app.post('/api/admin/update-status', async (req, res) => {
-    await connectDB();
-    const { mobile, status } = req.body;
-    await User.findOneAndUpdate({ mobile }, { is_verified: status });
-    res.json({ success: true });
+    res.json(await User.find().sort({ reg_date: -1 }));
 });
 
 module.exports = app;
