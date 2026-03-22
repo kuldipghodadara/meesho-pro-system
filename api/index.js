@@ -104,7 +104,25 @@ app.post('/api/admin/update-status', async (req, res) => {
     res.json({ success: true });
 });
 
-// Added to fix potential dashboard errors
+// --- ADD THESE ROUTES TO api/index.js ---
+
+// 1. FIX: Delete User Route
+app.post('/api/admin/delete-user', async (req, res) => {
+    try {
+        await connectDB();
+        const { mobile } = req.body;
+        const result = await User.findOneAndDelete({ mobile });
+        if (result) {
+            res.json({ success: true, message: "User deleted successfully" });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 2. FIX: Update Subscription Route (Required for the Dashboard Modal)
 app.post('/api/admin/update-subscription', async (req, res) => {
     try {
         await connectDB();
