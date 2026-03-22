@@ -16,7 +16,8 @@ const userSchema = new mongoose.Schema({
     email: String,
     user_ip: String,
     is_online: { type: Boolean, default: false },
-    is_verified: { type: Number, default: 0 } // 0: Pending, 1: Approved, -1: Blocked
+    is_verified: { type: Number, default: 0 }, // 0: Pending, 1: Approved, -1: Blocked
+    reg_date: { type: Date, default: Date.now } // Added to track registration timing
 });
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
@@ -41,26 +42,6 @@ app.get('/api/admin/users', async (req, res) => {
         res.json(users); // Sends full user data including passwords
     } catch (err) {
         res.status(500).json({ error: err.message });
-    }
-});
-
-
-// --- NEW ROUTE: UPDATE USER PROFILE ---
-app.post('/api/update-profile', async (req, res) => {
-    try {
-        await connectDB();
-        const { mobile, seller_name, gst_number, email } = req.body;
-        
-        const updatedUser = await User.findOneAndUpdate(
-            { mobile },
-            { seller_name, gst_number, email },
-            { new: true }
-        );
-
-        if (!updatedUser) return res.json({ success: false, message: "User not found" });
-        res.json({ success: true, data: updatedUser });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
     }
 });
 
@@ -102,37 +83,26 @@ app.post('/api/verify', async (req, res) => {
         let rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
         let userIp = rawIp.includes(',') ? rawIp.split(',')[0].trim() : rawIp;
 
-        // 1. FIND THE USER
         let user = await User.findOne({ mobile });
 
-        // 2. LOGOUT LOGIC
         if (action === 'logout') {
             if (user) { user.is_online = false; await user.save(); }
             return res.json({ success: true });
         }
 
-        // 3. LOGIN / HEARTBEAT LOGIC (THE FIX)
         if (action === 'login') {
-            if (!user) {
-                // If user was deleted from dashboard, return failure. DO NOT CREATE.
-                return res.json({ success: false, message: "Account not found." });
-            }
-            if (password && user.password !== password) {
-                return res.json({ success: false, message: "Invalid credentials." });
-            }
-            if (user.is_verified === -1) {
-                return res.json({ success: false, message: "Account blocked." });
-            }
+            if (!user) return res.json({ success: false, message: "Account not found." });
+            if (password && user.password !== password) return res.json({ success: false, message: "Invalid credentials." });
+            if (user.is_verified === -1) return res.json({ success: false, message: "Account blocked." });
 
-            // User exists and is valid, just update status
             user.user_ip = userIp;
             user.is_online = true;
             await user.save();
             return res.json({ success: true, data: user });
         }
 
-        // 4. REGISTRATION LOGIC
         if (action === 'register') {
+            // Logic check only for existing mobile number
             if (user) return res.json({ success: false, message: "User already exists. Please Login." });
             
             const newUser = new User({
@@ -141,15 +111,14 @@ app.post('/api/verify', async (req, res) => {
                 seller_name: req.body.seller_name,
                 gst_number: req.body.gst_number,
                 email: req.body.email,
-                user_ip: userIp,
+                user_ip: userIp, // Store IP for conflict management
                 is_online: true,
                 plan: "Trial",
-                is_verified: 0 // Waiting for admin approval
+                is_verified: 0 
             });
             await newUser.save();
             return res.json({ success: true, data: newUser });
         }
-
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
