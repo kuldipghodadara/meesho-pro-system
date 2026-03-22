@@ -29,7 +29,7 @@
     </style>
 </head>
 <body>
-    <h1 style="color:var(--primary)">Meesho Pro Management</h1>
+    <h1 style="color:var(--primary)">Meesho Pro Management Panel</h1>
     
     <div class="container">
         <table>
@@ -37,9 +37,8 @@
                 <tr>
                     <th>Mobile</th>
                     <th>Seller Name</th>
-                    <th>Reg Date</th>
-                    <th>Plan Selection</th>
                     <th>Status</th>
+                    <th>Plan</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -49,7 +48,7 @@
 
     <div id="modalOverlay">
         <div class="modal">
-            <div class="modal-head">User Profile Details</div>
+            <div class="modal-head">Seller Profile Details</div>
             <div class="modal-body" id="modalContent"></div>
             <div style="padding: 0 20px 20px;">
                 <button class="btn" style="background:#64748b; width:100%; padding:10px;" onclick="closeModal()">Close</button>
@@ -72,18 +71,18 @@
                 <tr>
                     <td><b>${u.mobile}</b></td>
                     <td>${u.seller_name || 'N/A'}</td>
-                    <td>${new Date(u.reg_date).toLocaleDateString()}</td>
+                    <td>
+                        ${u.is_online ? '<b style="color:var(--success)">● Online</b>' : '<span style="color:#94a3b8">○ Offline</span>'}
+                        <br><small>${u.is_verified === 1 ? '✅ Active' : u.is_verified === -1 ? '❌ Blocked' : '⏳ Trial'}</small>
+                    </td>
                     <td>
                         <select class="plan-select" onchange="autoCalculate('${u.mobile}', '${u.reg_date}', this.value)">
                             <option value="" disabled ${!u.plan || u.plan==='Trial' ? 'selected' : ''}>-- Set Plan --</option>
                             <option value="1" ${u.plan === '1' ? 'selected' : ''}>1 Month</option>
-                            <option value="2" ${u.plan === '2' ? 'selected' : ''}>2 Month</option>
                             <option value="3" ${u.plan === '3' ? 'selected' : ''}>3 Month</option>
-                            <option value="6" ${u.plan === '6' ? 'selected' : ''}>6 Month</option>
                             <option value="12" ${u.plan === '12' ? 'selected' : ''}>1 Year</option>
                         </select>
                     </td>
-                    <td>${u.is_verified === 1 ? '✅ Active' : u.is_verified === -1 ? '❌ Blocked' : '⏳ Trial'}</td>
                     <td>
                         <button class="btn btn-view" onclick="viewDetails('${u.mobile}')">View</button>
                         <button class="btn btn-verify" onclick="updateStatus('${u.mobile}', 1)">Verify</button>
@@ -101,16 +100,14 @@
 
             content.innerHTML = `
                 <div class="info-row"><span class="label">Mobile:</span> <span class="val-text">${user.mobile}</span></div>
-                <div class="info-row"><span class="label">Password:</span> <span class="val-text" style="color:var(--danger)">${user.password || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">IP Address:</span> <span class="val-text" style="color:var(--primary)">${user.user_ip || 'N/A'}</span></div>
-                <div class="info-row"><span class="label">GST:</span> <span class="val-text">${user.gst_number || 'N/A'}</span></div>
+                <div class="info-row"><span class="label">HWID:</span> <span class="val-text">${user.hwid || 'Not Linked'}</span></div>
                 <div class="info-row"><span class="label">Reg Date:</span> <span class="val-text">${new Date(user.reg_date).toLocaleDateString()}</span></div>
-                <div class="info-row"><span class="label">Expiry Date:</span> <span class="val-text">${expiryVal || 'Not Set'}</span></div>
-                <div class="info-row"><span class="label">Plan:</span> <span class="val-text">${user.plan || 'Trial'}</span></div>
+                <div class="info-row"><span class="label">Expiry:</span> <span class="val-text">${expiryVal || 'Trial'}</span></div>
                 
                 <div class="manual-box">
-                    <label class="label" style="display:block; margin-bottom:8px;">MANUAL EXPIRY:</label>
-                    <input type="date" class="plan-select" style="width:100%; box-sizing:border-box;" 
+                    <label class="label" style="display:block; margin-bottom:8px;">MANUAL EXPIRY SET:</label>
+                    <input type="date" class="plan-select" style="width:100%;" 
                            value="${expiryVal}" onchange="saveSubscription('${user.mobile}', 'Manual', this.value)">
                 </div>
             `;
@@ -137,7 +134,7 @@
         }
 
         async function deleteUser(mobile) {
-            if(confirm("Delete Permanently?")) {
+            if(confirm("Delete User Permanently?")) {
                 await fetch('/api/admin/delete-user', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
