@@ -76,10 +76,12 @@
         </table>
     </div>
 
-   <div id="viewPlans" class="container" style="display:none; padding: 20px;">
+  <div id="viewPlans" class="container" style="display:none; padding: 20px;">
     <h3>Plan Management</h3>
+    
     <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-        <input type="hidden" id="pId"> <input type="text" id="pName" placeholder="Plan Name">
+        <input type="hidden" id="pId"> 
+        <input type="text" id="pName" placeholder="Plan Name">
         <input type="number" id="pDur" placeholder="Months">
         <input type="number" id="pPrice" placeholder="Price (₹)">
         <input type="text" id="pFeat" style="flex-grow:1" placeholder="Features (comma separated)">
@@ -88,7 +90,21 @@
         <button id="btnUpdatePlan" class="btn btn-verify" style="display:none;" onclick="updateExistingPlan()">Update Plan</button>
         <button id="btnCancelEdit" class="btn btn-block" style="display:none;" onclick="resetPlanForm()">Cancel</button>
     </div>
-    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Plan Name</th>
+                <th>Duration</th>
+                <th>Price</th>
+                <th>Features</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="planListBody">
+            </tbody>
+    </table>
+</div>
 
     <div id="modalOverlay">
         <div class="modal">
