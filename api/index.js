@@ -206,4 +206,29 @@ app.delete('/api/admin/plans/delete/:id', async (req, res) => {
     }
 });
 
+// --- Inside index.js ---
+
+// Update an existing plan
+app.put('/api/admin/plans/update/:id', async (req, res) => {
+    try {
+        await connectDB();
+        const { id } = req.params;
+        const { name, duration, price, features } = req.body;
+        
+        const updatedPlan = await Plan.findByIdAndUpdate(
+            id, 
+            { name, duration, price, features }, 
+            { new: true } // Returns the modified document
+        );
+
+        if (!updatedPlan) {
+            return res.status(404).json({ success: false, message: "Plan not found" });
+        }
+
+        res.json({ success: true, data: updatedPlan });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 module.exports = app;
