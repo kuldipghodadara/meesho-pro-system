@@ -25,6 +25,16 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
+// Add Plan Schema
+const planSchema = new mongoose.Schema({
+    name: String,
+    duration: Number, // in months
+    price: Number,
+    features: [String], // Array of strings for description lines
+    is_active: { type: Boolean, default: true }
+});
+const Plan = mongoose.models.Plan || mongoose.model('Plan', planSchema);
+
 // Database Connection
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
@@ -154,6 +164,43 @@ app.post('/api/admin/block-conflicts', async (req, res) => {
         res.json({ success: true, blockedCount: conflictMobiles.length });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// --- NEW PLAN ROUTES ---
+
+// Get all active plans for the Desktop App
+app.get('/api/plans', async (req, res) => {
+    try {
+        await connectDB();
+        const plans = await Plan.find({ is_active: true });
+        res.json(plans);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Create or Update a Plan (Management Panel)
+app.post('/api/admin/plans/save', async (req, res) => {
+    try {
+        await connectDB();
+        const { name, duration, price, features } = req.body;
+        const plan = new Plan({ name, duration, price, features });
+        await plan.save();
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete a plan
+app.post('/api/admin/plans/delete', async (req, res) => {
+    try {
+        await connectDB();
+        await Plan.findByIdAndDelete(req.body.id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

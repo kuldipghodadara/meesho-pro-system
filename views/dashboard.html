@@ -11,7 +11,7 @@
         .tab-btn { padding: 12px 24px; cursor: pointer; border: none; border-radius: 8px; background: #e2e8f0; font-weight: bold; color: #64748b; transition: 0.2s; }
         .tab-btn.active { background: var(--primary); color: white; }
 
-        .container { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e2e8f0; }
+        .container { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e2e8f0; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #f1f5f9; color: var(--text); padding: 15px; text-align: left; font-size: 12px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
         td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
@@ -21,9 +21,11 @@
         .btn-verify { background: var(--success); }
         .btn-block { background: var(--warning); }
         .btn-delete { background: var(--danger); }
+        .btn-primary { background: var(--primary); }
         
         .plan-select { padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; }
         .conflict-tag { background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        input[type="text"], input[type="number"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
 
         #modalOverlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(3px); align-items: center; justify-content: center; z-index: 1000; }
         .modal { background: white; border-radius: 16px; width: 450px; overflow: hidden; }
@@ -31,7 +33,6 @@
         .modal-body { padding: 20px; }
         .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
         .label { font-weight: bold; color: #64748b; }
-        .manual-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -40,6 +41,7 @@
     <div class="tabs">
         <button class="tab-btn active" id="btnUsers" onclick="switchTab('users')">All Users</button>
         <button class="tab-btn" id="btnConflicts" onclick="switchTab('conflicts')">IP Conflicts</button>
+        <button class="tab-btn" id="btnPlans" onclick="switchTab('plans')">Plan Creator</button>
     </div>
     
     <div id="viewUsers" class="container">
@@ -72,6 +74,23 @@
         </table>
     </div>
 
+    <div id="viewPlans" class="container" style="display:none; padding: 20px;">
+        <h3>Create Dynamic Subscription Plan</h3>
+        <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            <input type="text" id="pName" placeholder="Plan Name (e.g. Gold)">
+            <input type="number" id="pDur" placeholder="Months">
+            <input type="number" id="pPrice" placeholder="Price (₹)">
+            <input type="text" id="pFeat" style="flex-grow:1" placeholder="Features (comma separated: Fast Sorting, 24/7 Support)">
+            <button class="btn btn-primary" style="padding: 10px 20px" onclick="saveNewPlan()">Create Plan</button>
+        </div>
+        <table>
+            <thead>
+                <tr><th>Name</th><th>Validity</th><th>Price</th><th>Features</th><th>Action</th></tr>
+            </thead>
+            <tbody id="planListBody"></tbody>
+        </table>
+    </div>
+
     <div id="modalOverlay">
         <div class="modal">
             <div class="modal-head">Seller Profile Details</div>
@@ -92,6 +111,58 @@
             renderConflictTable();
         }
 
+        async function switchTab(tab) {
+            const tabs = ['users', 'conflicts', 'plans'];
+            tabs.forEach(t => {
+                document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = tab === t ? 'block' : 'none';
+                document.getElementById('btn' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', tab === t);
+            });
+            if(tab === 'plans') loadPlansAdmin();
+        }
+
+        // --- PLAN MANAGEMENT LOGIC ---
+        async function saveNewPlan() {
+            const data = {
+                name: document.getElementById('pName').value,
+                duration: document.getElementById('pDur').value,
+                price: document.getElementById('pPrice').value,
+                features: document.getElementById('pFeat').value.split(',')
+            };
+            if(!data.name || !data.duration) return alert("Fill plan details");
+            await fetch('/api/admin/plans/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            loadPlansAdmin();
+            alert("Plan Saved!");
+        }
+
+        async function loadPlansAdmin() {
+            const res = await fetch('/api/plans');
+            const plans = await res.json();
+            document.getElementById('planListBody').innerHTML = plans.map(p => `
+                <tr>
+                    <td><b>${p.name}</b></td>
+                    <td>${p.duration} Months</td>
+                    <td>₹${p.price}</td>
+                    <td>${p.features.join(', ')}</td>
+                    <td><button class="btn btn-delete" onclick="deletePlan('${p._id}')">Delete</button></td>
+                </tr>
+            `).join('');
+        }
+
+        async function deletePlan(id) {
+            if(!confirm("Delete this plan?")) return;
+            await fetch('/api/admin/plans/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id })
+            });
+            loadPlansAdmin();
+        }
+
+        // --- USER & CONFLICT TABLE LOGIC ---
         function renderUserTable() {
             const list = document.getElementById('userList');
             list.innerHTML = allUsers.map(u => `
@@ -103,18 +174,15 @@
                         ${u.is_online ? '<b style="color:var(--success)">● Online</b>' : '<span style="color:#94a3b8">○ Offline</span>'}
                         <br><small>${u.is_verified === 1 ? '✅ Active' : u.is_verified === -1 ? '❌ Blocked' : '⏳ Trial'}</small>
                     </td>
-                   <td>
-    <select class="plan-select" onchange="autoCalculate('${u.mobile}', '${u.reg_date}', this.value)">
-        <option value="Trial" ${u.plan === 'Trial' ? 'selected' : ''}>Trial</option>
-        <option value="1" ${u.plan === '1' ? 'selected' : ''}>1 Month</option>
-        <option value="3" ${u.plan === '3' ? 'selected' : ''}>3 Month</option>
-        <option value="12" ${u.plan === '12' ? 'selected' : ''}>1 Year</option>
-    </select>
-    <br>
-    <small style="color:#64748b">
-        Exp: ${u.expiry_date ? new Date(u.expiry_date).toLocaleDateString() : 'No Date'}
-    </small>
-</td>
+                    <td>
+                        <select class="plan-select" onchange="autoCalculate('${u.mobile}', '${u.reg_date}', this.value)">
+                            <option value="Trial" ${u.plan === 'Trial' ? 'selected' : ''}>Trial</option>
+                            <option value="1" ${u.plan === '1' ? 'selected' : ''}>1 Month</option>
+                            <option value="3" ${u.plan === '3' ? 'selected' : ''}>3 Month</option>
+                            <option value="12" ${u.plan === '12' ? 'selected' : ''}>1 Year</option>
+                        </select>
+                        <br><small>Exp: ${u.expiry_date ? new Date(u.expiry_date).toLocaleDateString() : 'No Date'}</small>
+                    </td>
                     <td>
                         <button class="btn btn-view" onclick="viewDetails('${u.mobile}')">View</button>
                         <button class="btn btn-verify" onclick="updateStatus('${u.mobile}', 1)">Verify</button>
@@ -125,166 +193,42 @@
             `).join('');
         }
 
-       function renderConflictTable() {
-    const list = document.getElementById('conflictList');
-    const groups = {};
-    
-    // 1. Group users by IP
-    allUsers.forEach(u => {
-        if (u.user_ip) {
-            if (!groups[u.user_ip]) groups[u.user_ip] = [];
-            groups[u.user_ip].push(u);
-        }
-    });
-
-    // 2. Filter for groups with more than 1 account
-    const conflicts = Object.keys(groups).filter(ip => groups[ip].length > 1);
-
-    list.innerHTML = conflicts.map(ip => {
-        // Sort: Earliest (Original) first, Latest (Conflict) last
-        const sortedUsers = groups[ip].sort((a, b) => new Date(a.reg_date) - new Date(b.reg_date));
-        
-        // Identify the most recent registration in this group
-        const latestAccount = sortedUsers[sortedUsers.length - 1];
-        const latestRegDate = latestAccount.reg_date 
-            ? new Date(latestAccount.reg_date).toLocaleDateString() + ' ' + new Date(latestAccount.reg_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-            : 'N/A';
-
-        // Build the Associated Accounts list
-        const userListHtml = sortedUsers.map((u, index) => {
-            const color = index === 0 ? 'var(--success)' : 'var(--danger)';
-            const label = index === 0 ? '[ORIGINAL]' : '[CONFLICT]';
-            const status = u.is_verified === -1 ? ' (Blocked)' : '';
-            
-            return `
-                <div style="margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 2px;">
-                    <b style="color: ${color}">${u.mobile}</b> 
-                    <span style="font-size: 11px; color: #64748b;">(${u.seller_name || 'N/A'})</span>
-                    <small style="color: ${color}; font-size: 10px; margin-left: 5px; font-weight:bold;">${label}${status}</small>
-                </div>
-            `;
-        }).join('');
-
-        return `
-            <tr>
-                <td>
-                    <span class="conflict-tag">${ip}</span>
-                    <div style="font-size: 10px; color: #64748b; margin-top: 5px;">Total: ${sortedUsers.length} Users</div>
-                </td>
-                <td>${userListHtml}</td>
-                <td style="font-weight: 500; color: var(--text);">
-                    ${latestRegDate}
-                </td>
-                <td>
-                    <button class="btn btn-block" style="width: 100%; white-space: nowrap;" onclick="blockConflicts('${ip}')">
-                        Block All Conflicts
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-    
-    if(conflicts.length === 0) {
-        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color: #64748b;">No IP conflicts detected.</td></tr>';
-    }
-}
-
-        async function blockConflicts(ip) {
-            if (!confirm(`Block all secondary accounts on IP: ${ip}? The first registered account will stay active.`)) return;
-
-            try {
-                const res = await fetch('/api/admin/block-conflicts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ip })
-                });
-                const data = await res.json();
-                
-                if (data.success) {
-                    alert(`Success! Blocked ${data.blockedCount} secondary accounts.`);
-                    fetchUsers();
-                } else {
-                    alert("Error: " + (data.message || "Action failed"));
+        function renderConflictTable() {
+            const list = document.getElementById('conflictList');
+            const groups = {};
+            allUsers.forEach(u => {
+                if (u.user_ip) {
+                    if (!groups[u.user_ip]) groups[u.user_ip] = [];
+                    groups[u.user_ip].push(u);
                 }
-            } catch (err) {
-                alert("Server Connection Failed");
-            }
-        }
-
-        function switchTab(tab) {
-            document.getElementById('viewUsers').style.display = tab === 'users' ? 'block' : 'none';
-            document.getElementById('viewConflicts').style.display = tab === 'conflicts' ? 'block' : 'none';
-            document.getElementById('btnUsers').classList.toggle('active', tab === 'users');
-            document.getElementById('btnConflicts').classList.toggle('active', tab === 'conflicts');
-        }
-
-        function viewDetails(mobile) {
-            const user = allUsers.find(u => u.mobile === mobile);
-            const content = document.getElementById('modalContent');
-            const expiryVal = user.expiry_date ? user.expiry_date.split('T')[0] : '';
-            const regDateTime = user.reg_date 
-    ? new Date(user.reg_date).toLocaleDateString() + ' ' + 
-      new Date(user.reg_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
-    : 'N/A';
-
-            content.innerHTML = `
-                <div class="info-row"><span class="label">Seller Name:</span> <span>${user.seller_name || 'N/A'}</span></div>
-                <div class="info-row"><span class="label">Mobile:</span> <span>${user.mobile}</span></div>
-                <div class="info-row"><span class="label">Email:</span> <span>${user.email || 'N/A'}</span></div>
-                <div class="info-row"><span class="label">GST Number:</span> <span>${user.gst_number || 'N/A'}</span></div>
-                <div class="info-row"><span class="label">User Password:</span> <span>${user.password || 'N/A'}</span></div>
-                <div class="info-row"><span class="label">IP Address:</span> <span style="color:var(--primary)">${user.user_ip || 'N/A'}</span></div>
-<div class="info-row">
-        <span class="label">Reg Date:</span> 
-        <span>${regDateTime}</span>
-    </div>                
-                <div class="manual-box">
-                    <label class="label" style="display:block; margin-bottom:8px;">MANUAL EXPIRY SET:</label>
-                    <input type="date" class="plan-select" style="width:100%;" 
-                           value="${expiryVal}" onchange="saveSubscription('${user.mobile}', 'Manual', this.value)">
-                </div>
-            `;
-            document.getElementById('modalOverlay').style.display = 'flex';
-        }
-
-        async function saveSubscription(mobile, planName, expiryDate) {
-            await fetch('/api/admin/update-subscription', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mobile, plan: planName, expiry_date: expiryDate })
             });
-            fetchUsers();
-            closeModal();
+            const conflicts = Object.keys(groups).filter(ip => groups[ip].length > 1);
+            list.innerHTML = conflicts.map(ip => {
+                const sortedUsers = groups[ip].sort((a, b) => new Date(a.reg_date) - new Date(b.reg_date));
+                return `
+                    <tr>
+                        <td><span class="conflict-tag">${ip}</span></td>
+                        <td>${sortedUsers.map((u, i) => `<div style="font-size:12px;">${i==0?'⭐':''} ${u.mobile} (${u.seller_name || 'N/A'})</div>`).join('')}</td>
+                        <td>${new Date(sortedUsers[sortedUsers.length-1].reg_date).toLocaleString()}</td>
+                        <td><button class="btn btn-block" onclick="blockConflicts('${ip}')">Block All Conflicts</button></td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         async function updateStatus(mobile, status) {
-            await fetch('/api/admin/update-status', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ mobile, status })
-            });
+            await fetch('/api/admin/update-status', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ mobile, status }) });
             fetchUsers();
         }
 
         async function deleteUser(mobile) {
             if(confirm("Delete User Permanently?")) {
-                await fetch('/api/admin/delete-user', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ mobile })
-                });
+                await fetch('/api/admin/delete-user', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ mobile }) });
                 fetchUsers();
             }
         }
 
-        async function autoCalculate(mobile, regDate, months) {
-            let date = new Date(regDate);
-            date.setMonth(date.getMonth() + parseInt(months));
-            saveSubscription(mobile, months, date.toISOString().split('T')[0]);
-        }
-
         function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
-        
         fetchUsers();
     </script>
 </body>
