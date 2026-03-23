@@ -11,6 +11,7 @@ app.use(express.json());
 const userSchema = new mongoose.Schema({
     mobile: { type: String, required: true },
     password: { type: String, required: true },
+    client_id: { type: String, unique: true }, // New Field
     seller_name: String,
     gst_number: String,
     email: String,
@@ -110,13 +111,15 @@ app.post('/api/verify', async (req, res) => {
             const newUser = new User({
                 mobile,
                 password,
+                client_id: "MID" + Math.floor(1000 + Math.random() * 9000), // Generates ID like MID5829
                 seller_name: req.body.seller_name,
                 gst_number: req.body.gst_number,
                 email: req.body.email,
                 user_ip: userIp, // Store IP for conflict management
                 is_online: true,
                 plan: "Trial",
-                is_verified: 0 
+                is_verified: 0 ,
+                expiry_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Default 7 days trial 
             });
             await newUser.save();
             return res.json({ success: true, data: newUser });
