@@ -276,13 +276,21 @@
                 </tr>`).join('');
         }
 
-        async function deletePlan(id) {
-            if(confirm("Delete this plan?")) {
-                await fetch(`/api/admin/plans/delete/${id}`, { method: 'DELETE' });
-                loadPlansAdmin();
-                fetchUsers();
-            }
+       async function deletePlan(id) {
+    if(confirm("Delete this plan?")) {
+        // This generates the URL: /api/admin/plans/delete/69c159...
+        const res = await fetch(`/api/admin/plans/delete/${id}`, { 
+            method: 'DELETE' 
+        });
+        const result = await res.json();
+        if(result.success) {
+            loadPlansAdmin();
+            fetchUsers();
+        } else {
+            alert("Error deleting plan");
         }
+    }
+}
 
         fetchUsers();
     </script>

@@ -194,11 +194,13 @@ app.post('/api/admin/plans/save', async (req, res) => {
 });
 
 // Delete a plan
-app.post('/api/admin/plans/delete', async (req, res) => {
+// Delete a plan (Updated to handle ID in URL and DELETE method)
+app.delete('/api/admin/plans/delete/:id', async (req, res) => {
     try {
         await connectDB();
-        await Plan.findByIdAndDelete(req.body.id);
-        res.json({ success: true });
+        const { id } = req.params;
+        await Plan.findByIdAndDelete(id);
+        res.json({ success: true, message: "Plan deleted successfully" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
