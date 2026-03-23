@@ -101,14 +101,18 @@
                         ${u.is_online ? '<b style="color:var(--success)">● Online</b>' : '<span style="color:#94a3b8">○ Offline</span>'}
                         <br><small>${u.is_verified === 1 ? '✅ Active' : u.is_verified === -1 ? '❌ Blocked' : '⏳ Trial'}</small>
                     </td>
-                    <td>
-                        <select class="plan-select" onchange="autoCalculate('${u.mobile}', '${u.reg_date}', this.value)">
-                            <option value="" disabled ${!u.plan || u.plan==='Trial' ? 'selected' : ''}>-- Set Plan --</option>
-                            <option value="1" ${u.plan === '1' ? 'selected' : ''}>1 Month</option>
-                            <option value="3" ${u.plan === '3' ? 'selected' : ''}>3 Month</option>
-                            <option value="12" ${u.plan === '12' ? 'selected' : ''}>1 Year</option>
-                        </select>
-                    </td>
+                   <td>
+    <select class="plan-select" onchange="autoCalculate('${u.mobile}', '${u.reg_date}', this.value)">
+        <option value="Trial" ${u.plan === 'Trial' ? 'selected' : ''}>Trial</option>
+        <option value="1" ${u.plan === '1' ? 'selected' : ''}>1 Month</option>
+        <option value="3" ${u.plan === '3' ? 'selected' : ''}>3 Month</option>
+        <option value="12" ${u.plan === '12' ? 'selected' : ''}>1 Year</option>
+    </select>
+    <br>
+    <small style="color:#64748b">
+        Exp: ${u.expiry_date ? new Date(u.expiry_date).toLocaleDateString() : 'No Date'}
+    </small>
+</td>
                     <td>
                         <button class="btn btn-view" onclick="viewDetails('${u.mobile}')">View</button>
                         <button class="btn btn-verify" onclick="updateStatus('${u.mobile}', 1)">Verify</button>
