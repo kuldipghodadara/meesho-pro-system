@@ -193,8 +193,12 @@
 
             document.getElementById('modalContent').innerHTML = `
                 <div class="info-row"><span class="label">Client ID:</span> <span>${user.client_id || 'N/A'}</span></div>
+                                <div class="info-row"><span class="label">Seller Name:</span> <span>${user.seller_name || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">Mobile:</span> <span>${user.mobile}</span></div>
+                                <div class="info-row"><span class="label">Email:</span> <span>${user.email || 'N/A'}</span></div>
                 <div class="info-row"><span class="label">GST:</span> <span>${user.gst_number || 'N/A'}</span></div>
+                 <div class="info-row"><span class="label">User Password:</span> <span>${user.password || 'N/A'}</span></div>
+                <div class="info-row"><span class="label">IP Address:</span> <span style="color:var(--primary)">${user.user_ip || 'N/A'}</span></div>
                 
                 <div class="action-area">
                     <label class="label">Update Subscription Plan:</label>
