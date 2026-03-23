@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
     user_ip: String,
     is_online: { type: Boolean, default: false },
     is_verified: { type: Number, default: 0 }, // 0: Pending, 1: Approved, -1: Blocked
-    reg_date: { type: Date, default: Date.now } // Added to track registration timing
+    reg_date: { type: Date, default: Date.now } ,// Added to track registration timing
     plan: { type: String, default: 'Trial' }, 
     expiry_date: { type: Date }
 });
