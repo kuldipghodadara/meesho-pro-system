@@ -76,21 +76,18 @@
         </table>
     </div>
 
-    <div id="viewPlans" class="container" style="display:none; padding: 20px;">
-        <h3>Create Dynamic Subscription Plan</h3>
-        <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-            <input type="text" id="pName" placeholder="Plan Name">
-            <input type="number" id="pDur" placeholder="Months">
-            <input type="number" id="pPrice" placeholder="Price (₹)">
-            <input type="text" id="pFeat" style="flex-grow:1" placeholder="Features (comma separated)">
-            <button class="btn btn-primary" style="padding: 10px 20px" onclick="saveNewPlan()">Create Plan</button>
-        </div>
-        <table>
-            <thead>
-                <tr><th>Name</th><th>Validity</th><th>Price</th><th>Features</th><th>Action</th></tr>
-            </thead>
-            <tbody id="planListBody"></tbody>
-        </table>
+   <div id="viewPlans" class="container" style="display:none; padding: 20px;">
+    <h3>Plan Management</h3>
+    <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+        <input type="hidden" id="pId"> <input type="text" id="pName" placeholder="Plan Name">
+        <input type="number" id="pDur" placeholder="Months">
+        <input type="number" id="pPrice" placeholder="Price (₹)">
+        <input type="text" id="pFeat" style="flex-grow:1" placeholder="Features (comma separated)">
+        
+        <button id="btnSavePlan" class="btn btn-primary" onclick="saveNewPlan()">Create Plan</button>
+        <button id="btnUpdatePlan" class="btn btn-verify" style="display:none;" onclick="updateExistingPlan()">Update Plan</button>
+        <button id="btnCancelEdit" class="btn btn-block" style="display:none;" onclick="resetPlanForm()">Cancel</button>
+    </div>
     </div>
 
     <div id="modalOverlay">
@@ -266,19 +263,75 @@
             alert("Plan Saved!");
         }
 
-        async function loadPlansAdmin() {
-            const res = await fetch('/api/plans');
-            const plans = await res.json();
-            dynamicPlans = plans;
-            document.getElementById('planListBody').innerHTML = plans.map(p => `
-                <tr>
-                    <td><b>${p.name}</b></td>
-                    <td>${p.duration} Months</td>
-                    <td>₹${p.price}</td>
-                    <td>${p.features.join(', ')}</td>
-                    <td><button class="btn btn-delete" onclick="deletePlan('${p._id}')">Delete</button></td>
-                </tr>`).join('');
-        }
+     function editPlan(id) {
+    const plan = dynamicPlans.find(p => p._id === id);
+    if(!plan) return;
+
+    // Fill the form
+    document.getElementById('pId').value = plan._id;
+    document.getElementById('pName').value = plan.name;
+    document.getElementById('pDur').value = plan.duration;
+    document.getElementById('pPrice').value = plan.price;
+    document.getElementById('pFeat').value = plan.features.join(',');
+
+    // Toggle Buttons
+    document.getElementById('btnSavePlan').style.display = 'none';
+    document.getElementById('btnUpdatePlan').style.display = 'inline-block';
+    document.getElementById('btnCancelEdit').style.display = 'inline-block';
+}
+
+function resetPlanForm() {
+    document.getElementById('pId').value = '';
+    document.getElementById('pName').value = '';
+    document.getElementById('pDur').value = '';
+    document.getElementById('pPrice').value = '';
+    document.getElementById('pFeat').value = '';
+    
+    document.getElementById('btnSavePlan').style.display = 'inline-block';
+    document.getElementById('btnUpdatePlan').style.display = 'none';
+    document.getElementById('btnCancelEdit').style.display = 'none';
+}
+
+async function updateExistingPlan() {
+    const id = document.getElementById('pId').value;
+    const data = {
+        name: document.getElementById('pName').value,
+        duration: document.getElementById('pDur').value,
+        price: document.getElementById('pPrice').value,
+        features: document.getElementById('pFeat').value.split(',')
+    };
+
+    const res = await fetch(`/api/admin/plans/update/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+    
+    const result = await res.json();
+    if(result.success) {
+        alert("Plan Updated!");
+        resetPlanForm();
+        loadPlansAdmin();
+    }
+}
+
+// Update the loadPlansAdmin to include the Edit button in the table
+async function loadPlansAdmin() {
+    const res = await fetch('/api/plans');
+    const plans = await res.json();
+    dynamicPlans = plans;
+    document.getElementById('planListBody').innerHTML = plans.map(p => `
+        <tr>
+            <td><b>${p.name}</b></td>
+            <td>${p.duration} Months</td>
+            <td>₹${p.price}</td>
+            <td>${p.features.join(', ')}</td>
+            <td>
+                <button class="btn btn-view" onclick="editPlan('${p._id}')">Edit</button>
+                <button class="btn btn-delete" onclick="deletePlan('${p._id}')">Delete</button>
+            </td>
+        </tr>`).join('');
+}
 
        async function deletePlan(id) {
     if(confirm("Delete this plan?")) {
