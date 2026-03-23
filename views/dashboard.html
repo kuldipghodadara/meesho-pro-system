@@ -96,6 +96,7 @@
             const list = document.getElementById('userList');
             list.innerHTML = allUsers.map(u => `
                 <tr>
+                    <td>${u.client_id || 'N/A'}</td>
                     <td><b>${u.mobile}</b></td>
                     <td>${u.seller_name || 'N/A'}</td>
                     <td>
