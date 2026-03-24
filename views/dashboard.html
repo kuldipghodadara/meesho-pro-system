@@ -171,28 +171,49 @@
 
         // --- TABLE RENDERING ---
         function renderUserTable() {
-            const list = document.getElementById('userList');
-            list.innerHTML = allUsers.map(u => `
-                <tr>
-                    <td><small>${u.client_id || 'N/A'}</small></td>
-                    <td><b>${u.mobile}</b></td>
-                    <td>${u.seller_name || 'N/A'}</td>
-                    <td>
-                        ${u.is_online ? '<b style="color:var(--success)">● Online</b>' : '<span style="color:#94a3b8">○ Offline</span>'}
-                        <br><small>${u.is_verified === 1 ? '✅ Active' : u.is_verified === -1 ? '❌ Blocked' : '⏳ Trial'}</small>
-                    </td>
-                    <td>
-                        <b>${u.plan || 'Trial'}</b><br>
-                        <small>Exp: ${u.expiry_date ? new Date(u.expiry_date).toLocaleDateString() : 'N/A'}</small>
-                    </td>
-                    <td>
-                        <button class="btn btn-view" onclick="openSubscriptionModal('${u.mobile}')">Edit / View</button>
-                        <button class="btn btn-verify" onclick="updateStatus('${u.mobile}', 1)">Verify</button>
-                        <button class="btn btn-block" onclick="updateStatus('${u.mobile}', -1)">Block</button>
-                        <button class="btn btn-delete" onclick="deleteUser('${u.mobile}')">Del</button>
-                    </td>
-                </tr>`).join('');
+    const list = document.getElementById('userList');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today to start of day for accurate comparison
+
+    list.innerHTML = allUsers.map(u => {
+        let expiryHtml = 'N/A';
+        let expiryColor = '#64748b'; // Default slate color
+
+        if (u.expiry_date) {
+            const expDate = new Date(u.expiry_date);
+            // Check if expired
+            if (expDate < today) {
+                expiryColor = 'var(--danger)'; // Red color
+            } else {
+                expiryColor = 'var(--success)'; // Optional: Green if active
+            }
+            expiryHtml = expDate.toLocaleDateString();
         }
+
+        return `
+            <tr>
+                <td><small>${u.client_id || 'N/A'}</small></td>
+                <td><b>${u.mobile}</b></td>
+                <td>${u.seller_name || 'N/A'}</td>
+                <td>
+                    ${u.is_online ? '<b style="color:var(--success)">● Online</b>' : '<span style="color:#94a3b8">○ Offline</span>'}
+                    <br><small>${u.is_verified === 1 ? '✅ Active' : u.is_verified === -1 ? '❌ Blocked' : '⏳ Trial'}</small>
+                </td>
+                <td>
+                    <b>${u.plan || 'Trial'}</b><br>
+                    <small style="color: ${expiryColor}; font-weight: bold;">
+                        Exp: ${expiryHtml}
+                    </small>
+                </td>
+                <td>
+                    <button class="btn btn-view" onclick="openSubscriptionModal('${u.mobile}')">Edit / View</button>
+                    <button class="btn btn-verify" onclick="updateStatus('${u.mobile}', 1)">Verify</button>
+                    <button class="btn btn-block" onclick="updateStatus('${u.mobile}', -1)">Block</button>
+                    <button class="btn btn-delete" onclick="deleteUser('${u.mobile}')">Del</button>
+                </td>
+            </tr>`;
+    }).join('');
+}
 
         function openSubscriptionModal(mobile) {
             const user = allUsers.find(u => u.mobile === mobile);
