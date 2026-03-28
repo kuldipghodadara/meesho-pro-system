@@ -139,6 +139,34 @@ app.post('/api/verify', async (req, res) => {
     }
 });
 
+// --- UPDATE USER PROFILE ---
+app.post('/api/update-profile', async (req, res) => {
+    try {
+        await connectDB();
+
+        const { mobile, seller_name, gst_number, email } = req.body;
+
+        const updatedUser = await User.findOneAndUpdate(
+            { mobile },
+            {
+                seller_name,
+                gst_number,
+                email
+            },
+            { new: true }
+        );
+
+        if (!updatedUser) {
+            return res.json({ success: false, message: "User not found" });
+        }
+
+        res.json({ success: true, data: updatedUser });
+
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // --- NEW ROUTE: BLOCK ALL CONFLICTS FOR AN IP ---
 app.post('/api/admin/block-conflicts', async (req, res) => {
     try {
